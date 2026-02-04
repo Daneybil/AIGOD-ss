@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AIGODS • The Future of Artificial Intelligence</title>
+    <meta name="description" content="AIGODS - Decentralized Superintelligence Token. Presale: $0.20 → Listing: $3.50 (17.5x). Backed by BlackRock, Tesla, OpenAI & $10B+."/>
+    <link rel="icon" href="https://i.im.ge/2026/02/04/eIsYkh.100661.jpeg" type="image/png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #000000;
+        color: white;
+        margin: 0;
+        overflow-x: hidden;
+      }
+      .text-gradient-magenta {
+        background: linear-gradient(90deg, #00ffff, #ff00ff, #ffffff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .bg-gradient-cyan-magenta {
+        background: linear-gradient(to right, #ff00ff, #00ffff);
+      }
+      .neon-glow-green {
+        box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #000;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #1a0b2e;
+        border-radius: 4px;
+      }
+
+      @keyframes float {
+        0%, 100% { transform: translateY(0) translateX(0) scale(1) rotate(0deg); }
+        25% { transform: translateY(-60px) translateX(30px) scale(1.1) rotate(5deg); }
+        50% { transform: translateY(-20px) translateX(-30px) scale(0.9) rotate(-5deg); }
+        75% { transform: translateY(40px) translateX(20px) scale(1.05) rotate(2deg); }
+      }
+
+      @keyframes slow-zoom {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.15); }
+      }
+
+      @keyframes pulse-slow {
+        0%, 100% { opacity: 0.1; }
+        50% { opacity: 0.3; }
+      }
+
+      /* 3D COIN ANIMATION */
+      @keyframes coin-rotate-y {
+        0% { transform: rotateY(0deg); }
+        100% { transform: rotateY(360deg); }
+      }
+
+      @keyframes metallic-shine {
+        0% { filter: brightness(1) contrast(1.2); }
+        50% { filter: brightness(1.4) contrast(1.4); }
+        100% { filter: brightness(1) contrast(1.2); }
+      }
+
+      /* NEW 3D COIN CLASSES */
+      .coin-container {
+        perspective: 1500px;
+        width: 320px;
+        height: 320px;
+        margin: 0 auto;
+      }
+
+      .coin-3d {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        transform-style: preserve-3d;
+        animation: coin-rotate-y 10s linear infinite;
+      }
+
+      .animate-coin-rotate-y {
+        animation: coin-rotate-y 10s linear infinite;
+      }
+
+      .coin-face {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        backface-visibility: hidden;
+        border: 12px solid #a1882d; /* Metallic gold edge */
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        box-shadow: 0 0 50px rgba(161, 136, 45, 0.4), inset 0 0 30px rgba(0,0,0,0.8);
+      }
+
+      .coin-face img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        animation: metallic-shine 4s ease-in-out infinite;
+      }
+
+      .coin-face-front {
+        transform: translateZ(12px);
+      }
+
+      .coin-face-back {
+        transform: rotateY(180deg) translateZ(12px);
+      }
+
+      /* Coin edge simulation */
+      .coin-edge {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: #8b7526;
+        transform: translateZ(0);
+        box-shadow: inset 0 0 40px rgba(0,0,0,0.5);
+      }
+
+      .animate-float { animation: float ease-in-out infinite; }
+      .animate-slow-zoom { animation: slow-zoom 30s ease-in-out infinite; }
+      .animate-pulse-slow { animation: pulse-slow 5s ease-in-out infinite; }
+
+      .scrollbar-hide::-webkit-scrollbar { display: none; }
+      .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.39.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
