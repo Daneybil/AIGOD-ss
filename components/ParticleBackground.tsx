@@ -5,18 +5,21 @@ import { AIGODS_LOGO_URL } from '../constants';
 const ParticleBackground: React.FC = () => {
   return (
     <div className="fixed inset-0 -z-20 overflow-hidden pointer-events-none bg-black">
+      {/* Main Large Background Image - Darkened and Slowly Zooming */}
       <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat animate-slow-zoom opacity-40"
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat animate-slow-zoom opacity-20"
         style={{ 
           backgroundImage: `url('${AIGODS_LOGO_URL}')`,
-          filter: 'brightness(0.7) contrast(1.3) saturate(1.2)'
+          filter: 'brightness(0.5) contrast(1.1) saturate(0.8)'
         }}
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-orange-950/60 via-black/80 to-black/95 mix-blend-multiply" />
-      <div className="absolute inset-0 animate-pulse-slow bg-orange-500/5" />
+      {/* Darkened Gradient Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/95 mix-blend-multiply" />
+      <div className="absolute inset-0 animate-pulse-slow bg-cyan-500/5" />
 
+      {/* Floating AIGODS Logos Animation */}
       <div className="absolute inset-0 overflow-hidden [perspective:1500px] z-10">
-        {[...Array(20)].map((_, i) => (
+        {[...Array(18)].map((_, i) => (
           <div 
             key={i}
             className="absolute animate-float"
@@ -24,17 +27,24 @@ const ParticleBackground: React.FC = () => {
               top: `${Math.random() * 100}%`,
               left: `${Math.random() * 100}%`,
               animationDelay: `${Math.random() * -40}s`,
-              animationDuration: `${18 + Math.random() * 22}s`,
+              animationDuration: `${20 + Math.random() * 25}s`,
             }}
           >
             <div 
-              className="relative w-12 h-12 md:w-20 md:h-20 [transform-style:preserve-3d] animate-spin-3d"
-              style={{ animationDuration: `${4 + Math.random() * 7}s`, opacity: 0.3 + Math.random() * 0.3 }}
+              className="relative w-12 h-12 md:w-20 md:h-20 [transform-style:preserve-3d] animate-coin-rotate-y"
+              style={{ 
+                animationDuration: `${5 + Math.random() * 8}s`, 
+                opacity: 0.2 + Math.random() * 0.3 
+              }}
             >
-              {[...Array(5)].map((_, idx) => (
-                <div key={idx} className="absolute inset-0 rounded-full border border-yellow-800 bg-yellow-600" style={{ transform: `translateZ(${idx - 2}px)` }} />
-              ))}
-              <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-yellow-600 to-yellow-300 border-2 border-yellow-200 flex items-center justify-center text-yellow-900 font-black text-2xl md:text-3xl [transform:translateZ(3px)]">₿</div>
+              {/* Floating Logo Particle */}
+              <div className="absolute inset-0 rounded-full overflow-hidden border border-white/10 bg-black/40 backdrop-blur-sm">
+                <img 
+                  src={AIGODS_LOGO_URL} 
+                  alt="Gods Logo" 
+                  className="w-full h-full object-cover grayscale brightness-75" 
+                />
+              </div>
             </div>
           </div>
         ))}
