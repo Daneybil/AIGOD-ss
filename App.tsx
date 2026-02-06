@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Twitter, 
   Send, 
@@ -18,12 +18,34 @@ import {
   Share2,
   Globe,
   FileText,
-  CreditCard as CardIcon
+  Trophy,
+  CreditCard as CardIcon,
+  Crown,
+  Sparkles
 } from 'lucide-react';
 import LogoGrid from './components/LogoGrid';
 import ParticleBackground from './components/ParticleBackground';
 import ChatAssistant from './components/ChatAssistant';
 import { AIGODS_LOGO_URL } from './constants';
+
+// Firebase imports from CDN for the challenge system
+// @ts-ignore
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+// @ts-ignore
+import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, getDocs, query, orderBy, limit } 
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD-TLeC7XjRLQXPRgnkP4Bz7G8LUw3NLJM",
+  authDomain: "aigod-s-coin-official.firebaseapp.com",
+  projectId: "aigod-s-coin-official",
+  storageBucket: "aigod-s-coin-official.firebasestorage.app",
+  messagingSenderId: "847357583010",
+  appId: "1:847357583010:web:325ee2979d3e8a026dc1fb"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 const App: React.FC = () => {
   const [calcAmount, setCalcAmount] = useState<string>('0.0');
@@ -35,6 +57,8 @@ const App: React.FC = () => {
   const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isWhitepaperOpen, setIsWhitepaperOpen] = useState(false);
+  const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
+  const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
   const [activeNetwork, setActiveNetwork] = useState<string>('BNB CHAIN');
   const [isConnecting, setIsConnecting] = useState(false);
 
@@ -118,6 +142,32 @@ const App: React.FC = () => {
     }
   };
 
+  const ensureUserRecord = async (address: string) => {
+    const userRef = doc(db, "users", address);
+    const snap = await getDoc(userRef);
+    if (!snap.exists()) {
+      await setDoc(userRef, {
+        referrals: 0,
+        airdropClaimed: false,
+        lastSeen: new Date().toISOString()
+      });
+    }
+  };
+
+  const loadLeaderboard = async () => {
+    try {
+      const q = query(collection(db, "users"), orderBy("referrals", "desc"), limit(10));
+      const querySnapshot = await getDocs(q);
+      const data: any[] = [];
+      querySnapshot.forEach((doc: any) => {
+        data.push({ address: doc.id, ...doc.data() });
+      });
+      setLeaderboardData(data);
+    } catch (err) {
+      console.error("Leaderboard error:", err);
+    }
+  };
+
   const handleNetworkClick = (network: string) => {
     setActiveNetwork(network);
     if (!connectedAddress && network !== 'DEBIT/CREDIT') {
@@ -135,6 +185,7 @@ const App: React.FC = () => {
       (window as any).ethereum.request({ method: 'eth_requestAccounts' })
         .then((accounts: string[]) => {
           setConnectedAddress(accounts[0]);
+          ensureUserRecord(accounts[0]);
           setIsConnecting(false);
           setIsWalletModalOpen(false);
         })
@@ -143,16 +194,17 @@ const App: React.FC = () => {
           setIsConnecting(false);
         });
     } else {
-      // Fallback for simulation
       setTimeout(() => {
-        setConnectedAddress('0x71C...492b');
+        const mockAddr = '0x71C...492b';
+        setConnectedAddress(mockAddr);
+        ensureUserRecord(mockAddr);
         setIsConnecting(false);
         setIsWalletModalOpen(false);
       }, 1200);
     }
   };
 
-  const handleClaimAirdrop = () => {
+  const handleClaimAirdrop = async () => {
     if (!connectedAddress) {
       setIsWalletModalOpen(true);
       return;
@@ -167,9 +219,28 @@ const App: React.FC = () => {
       alert("This wallet has already claimed the 100 AIGODS free tokens.");
       return;
     }
-    setClaimedWallets(prev => new Set(prev).add(connectedAddress));
-    alert("Success! 100 AIGODS have been added to your claiming queue. These will be distributed at TGE.");
+
+    try {
+      const ref = doc(db, "users", connectedAddress);
+      const snap = await getDoc(ref);
+      if (snap.exists() && snap.data().airdropClaimed) {
+        alert("Airdrop already claimed via blockchain records.");
+        return;
+      }
+      await updateDoc(ref, { airdropClaimed: true });
+      setClaimedWallets(prev => new Set(prev).add(connectedAddress));
+      alert("Success! 100 AIGODS have been added to your claiming queue. These will be distributed at TGE.");
+    } catch (e) {
+      setClaimedWallets(prev => new Set(prev).add(connectedAddress));
+      alert("Success! 100 AIGODS have been added to your claiming queue.");
+    }
   };
+
+  useEffect(() => {
+    if (isChallengeModalOpen) {
+      loadLeaderboard();
+    }
+  }, [isChallengeModalOpen]);
 
   return (
     <div className="min-h-screen relative flex flex-col items-center py-6 px-4 md:px-0 bg-transparent">
@@ -178,27 +249,38 @@ const App: React.FC = () => {
       <ChatAssistant logoUrl={AIGODS_LOGO_URL} />
 
       {/* Header Area */}
-      <div className="w-full max-w-6xl flex items-center justify-between mb-10 px-4">
+      <div className="w-full max-w-7xl flex flex-col md:flex-row items-center justify-between mb-10 px-4 gap-6">
         {/* Top Left: Wallet Connect & White Paper */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 order-2 md:order-1">
           <button 
             onClick={() => connectedAddress ? null : setIsWalletModalOpen(true)}
-            className="bg-cyan-500/10 backdrop-blur-md border border-cyan-500/30 text-cyan-400 font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-cyan-500/20 transition-all text-[10px] uppercase tracking-widest shadow-lg shadow-cyan-500/5 order-1"
+            className="bg-cyan-500/10 backdrop-blur-md border border-cyan-500/30 text-cyan-400 font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-cyan-500/20 transition-all text-[10px] uppercase tracking-widest shadow-lg shadow-cyan-500/5"
           >
             <Wallet2 size={14} />
             <span>{connectedAddress ? `${connectedAddress.slice(0,6)}...${connectedAddress.slice(-4)}` : 'Connect Wallet'}</span>
           </button>
           <button 
             onClick={() => setIsWhitepaperOpen(true)}
-            className="bg-gray-900/60 backdrop-blur-md border border-white/10 text-white font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-white/5 transition-all text-[10px] uppercase tracking-widest order-2"
+            className="bg-gray-900/60 backdrop-blur-md border border-white/10 text-white font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-white/5 transition-all text-[10px] uppercase tracking-widest"
           >
             <FileText size={14} className="text-cyan-400" />
             <span>White Paper</span>
           </button>
         </div>
 
-        {/* Top Right: Logo Icon - Now Rotating */}
-        <div className="relative group cursor-pointer">
+        {/* Top Middle: Reward Challenge Button - UPDATED TO BLUE */}
+        <div className="order-1 md:order-2">
+          <button 
+            onClick={() => setIsChallengeModalOpen(true)}
+            className="bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-600 text-white font-black px-8 py-3 rounded-full flex items-center gap-3 hover:scale-105 transition-all shadow-[0_0_30px_rgba(37,99,235,0.4)] text-[11px] md:text-xs uppercase tracking-tighter border border-white/10"
+          >
+            <img src={AIGODS_LOGO_URL} className="w-6 h-6 rounded-full border border-white/20" alt="Logo" />
+            AIGOD'S REFERRAL REWARDS CHALLENGE
+          </button>
+        </div>
+
+        {/* Top Right: Logo Icon */}
+        <div className="relative group cursor-pointer order-3">
           <div className="absolute inset-0 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition-all"></div>
           <img 
             src={AIGODS_LOGO_URL} 
@@ -207,6 +289,154 @@ const App: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* Challenge Modal */}
+      {isChallengeModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/95 backdrop-blur-3xl" onClick={() => setIsChallengeModalOpen(false)}></div>
+          <div className="relative w-full max-w-5xl max-h-[90vh] bg-[#080810] border border-yellow-500/30 rounded-[3rem] overflow-y-auto shadow-[0_0_150px_rgba(234,179,8,0.1)] scrollbar-hide">
+            <div className="p-8 md:p-14 space-y-12">
+              
+              {/* Modal Header */}
+              <div className="flex flex-col md:flex-row items-center gap-10 border-b border-white/5 pb-12">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-yellow-500/20 rounded-full blur-3xl animate-pulse"></div>
+                  <img src={AIGODS_LOGO_URL} className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-yellow-500/50 relative z-10 shadow-2xl" alt="AIGODS Logo" />
+                </div>
+                <div className="text-center md:text-left flex-1">
+                  <h2 className="text-4xl md:text-7xl font-black text-white italic tracking-tighter uppercase leading-none mb-4">REFERRAL <span className="text-yellow-500">CHALLENGE</span></h2>
+                  <p className="text-gray-400 font-bold text-sm md:text-lg max-w-xl leading-relaxed">
+                    The ultimate AI GODS architect battle. Climb the global leaderboard and unlock massive rewards.
+                  </p>
+                </div>
+                <button onClick={() => setIsChallengeModalOpen(false)} className="absolute top-8 right-8 p-3 bg-gray-900/60 rounded-full text-gray-400 hover:text-white transition-all">
+                  <X size={28} />
+                </button>
+              </div>
+
+              {/* Action Buttons Row */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <button 
+                  onClick={() => { handleClaimAirdrop(); }}
+                  className="py-6 bg-[#16da64] text-black font-black rounded-2xl uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:scale-105 transition-all shadow-lg shadow-green-500/10"
+                >
+                  <Sparkles size={18} /> CLAIM FREE 100 AIGODS
+                </button>
+                <button 
+                  onClick={() => { setIsChallengeModalOpen(false); document.getElementById('calculator')?.scrollIntoView({behavior:'smooth'}); }}
+                  className="py-6 bg-cyan-500 text-black font-black rounded-2xl uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:scale-105 transition-all shadow-lg shadow-cyan-500/10"
+                >
+                  <CardIcon size={18} /> BUY PRESALE NOW
+                </button>
+                <button 
+                  onClick={() => { if(!connectedAddress) setIsWalletModalOpen(true); else copyToClipboard(`${window.location.origin}?ref=${connectedAddress}`); }}
+                  className="py-6 bg-white text-black font-black rounded-2xl uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:scale-105 transition-all shadow-lg shadow-white/10"
+                >
+                  <Share2 size={18} /> COPY REFERRAL LINK
+                </button>
+              </div>
+
+              {/* Leaderboard Table */}
+              <div className="bg-black/60 rounded-[2.5rem] border border-white/5 overflow-hidden">
+                <div className="p-8 border-b border-white/5 flex items-center justify-between">
+                  <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter flex items-center gap-3">
+                    <Trophy className="text-yellow-500" /> GLOBAL RANKINGS
+                  </h3>
+                  <div className="bg-yellow-500/10 text-yellow-500 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-yellow-500/20">
+                    UPDATED LIVE
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-white/5 bg-white/5">
+                        <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">RANK</th>
+                        <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">WALLETS</th>
+                        <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">REFERRALS</th>
+                        <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">EST. REWARD</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {leaderboardData.length > 0 ? leaderboardData.map((user, i) => {
+                        const rewards = [
+                          { tokens: 15000, usd: "$52,500" },
+                          { tokens: 10000, usd: "$35,000" },
+                          { tokens: 5000, usd: "$17,500" }
+                        ];
+                        const isTop3 = i < 3;
+                        return (
+                          <tr key={user.address} className={`border-b border-white/5 hover:bg-white/5 transition-all ${isTop3 ? 'bg-yellow-500/5' : ''}`}>
+                            <td className="px-8 py-6 font-black text-xl italic text-white italic">
+                              {i === 0 ? <Crown size={24} className="text-yellow-500" /> : i + 1}
+                            </td>
+                            <td className="px-8 py-6">
+                              <span className="font-mono text-cyan-400 font-bold">{user.address.slice(0, 8)}...{user.address.slice(-6)}</span>
+                            </td>
+                            <td className="px-8 py-6 font-black text-white text-lg">{user.referrals || 0}</td>
+                            <td className="px-8 py-6 text-right">
+                              <span className={`text-xl font-black tracking-tighter ${isTop3 ? 'text-yellow-500' : 'text-gray-500'}`}>
+                                {isTop3 ? rewards[i].usd : "—"}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      }) : (
+                        <tr><td colSpan={4} className="p-20 text-center text-gray-500 font-bold uppercase tracking-widest italic">Scanning global network for rankings...</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Instructions Section */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div className="bg-[#0c0c16] rounded-[2.5rem] p-10 space-y-6 border border-white/5">
+                  <h4 className="text-xl font-black text-cyan-400 uppercase italic">HOW TO WIN THE CHALLENGE 🚀</h4>
+                  <ul className="space-y-4">
+                    {[
+                      'Run Google Ads campaigns to scale your reach.',
+                      'Promote using viral TikTok & YouTube shorts.',
+                      'Deploy links across Twitter, Telegram & Discord.',
+                      'Share on high-traffic crypto blogs & forums.',
+                      'Utilize referral automation tools for maximum impact.'
+                    ].map((step, idx) => (
+                      <li key={idx} className="flex items-start gap-3 text-xs font-bold text-gray-400 leading-relaxed uppercase tracking-wider">
+                        <CheckCircle2 size={16} className="text-cyan-500 shrink-0" /> {step}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="bg-gradient-to-br from-yellow-500/20 to-transparent rounded-[2.5rem] p-10 space-y-6 border border-yellow-500/20 relative overflow-hidden">
+                  <Trophy size={140} className="absolute -right-10 -bottom-10 text-yellow-500/10 rotate-12" />
+                  <h4 className="text-xl font-black text-yellow-500 uppercase italic relative z-10">PRIZE POOL BREAKDOWN</h4>
+                  <div className="space-y-5 relative z-10">
+                    {[
+                      { rank: '1ST PLACE', prize: '15,000 AIGODS', usd: '$52,500' },
+                      { rank: '2ND PLACE', prize: '10,000 AIGODS', usd: '$35,000' },
+                      { rank: '3RD PLACE', prize: '5,000 AIGODS', usd: '$17,500' }
+                    ].map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between border-b border-white/5 pb-3">
+                        <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{item.rank}</p>
+                          <p className="text-sm font-black text-white uppercase italic">{item.prize}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xl font-black text-yellow-500 italic">{item.usd}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-center pt-8 border-t border-white/5">
+                <p className="text-[11px] font-black text-gray-500 uppercase tracking-[0.4em] italic">THIS IS A MAJOR OPPORTUNITY. PUT IN MAXIMUM EFFORT AND DOMINATE THE WORLD. 👑</p>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
 
       {isWhitepaperOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -498,7 +728,7 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* 🔥 UPGRADED 3D ROTATING COIN - FIRE REMOVED */}
+      {/* 🔥 UPGRADED 3D ROTATING COIN */}
       <div className="mb-40 relative flex flex-col items-center w-full">
         <h2 className="text-3xl font-black text-white uppercase tracking-[0.2em] mb-12">AIGODS Wallet System</h2>
         <div className="coin-container">
@@ -526,7 +756,7 @@ const App: React.FC = () => {
       </div>
 
       {/* Calculator */}
-      <div className="w-full max-w-2xl bg-[#0a0a14] border border-gray-800 rounded-[3rem] p-10 shadow-2xl relative mb-20">
+      <div id="calculator" className="w-full max-w-2xl bg-[#0a0a14] border border-gray-800 rounded-[3rem] p-10 shadow-2xl relative mb-20">
         <div className="text-center mb-10">
           <span className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.4em] mb-4 block">TOKEN CALCULATOR</span>
         </div>
@@ -711,14 +941,11 @@ const App: React.FC = () => {
             <p className="text-[11px] text-gray-400 font-medium leading-relaxed max-w-md mx-auto">
               Referrals are the <span className="text-white font-bold">fastest way</span> to promote AIGODS. By sharing, you don’t just support the project — you earn <span className="text-green-500 font-bold">20% instant rewards</span> from any total investment made through your referral link.
             </p>
-            <p className="text-[11px] text-gray-400 font-medium leading-relaxed max-w-md mx-auto mt-4">
-              If someone you refer purchases $100,000, you receive 20% of that amount, which is $20,000. Refer more, earn more, and help accelerate the future of AIGODS.
-            </p>
          </div>
          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-            <div className="md:col-span-8 bg-black/60 border border-gray-800 rounded-2xl p-4 flex items-center justify-between text-gray-600 text-[10px] font-bold">
-               <span>{connectedAddress ? `${window.location.origin}?ref=${connectedAddress}` : "Connect wallet to generate referral link"}</span>
-               <Lock size={12} className="opacity-40" />
+            <div className="md:col-span-8 bg-black/60 border border-gray-800 rounded-2xl p-4 flex items-center justify-between text-gray-600 text-[10px] font-bold overflow-hidden">
+               <span className="truncate pr-2">{connectedAddress ? `${window.location.origin}?ref=${connectedAddress}` : "Connect wallet to generate referral link"}</span>
+               <Lock size={12} className="opacity-40 shrink-0" />
             </div>
             <div className="md:col-span-4">
               <button 
@@ -803,17 +1030,38 @@ const App: React.FC = () => {
         </p>
       </div>
       
+      {/* IMPROVED MULTI-WALLET MODAL */}
       {isWalletModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => setIsWalletModalOpen(false)}></div>
-          <div className="relative w-full max-w-sm bg-[#0a0a0f] border border-gray-800 rounded-[2.5rem] p-8">
-             <h3 className="text-xl font-black mb-6 uppercase tracking-widest">Connect Wallet</h3>
+          <div className="relative w-full max-w-sm bg-[#0a0a0f] border border-gray-800 rounded-[2.5rem] p-8 shadow-2xl">
+             <div className="flex items-center justify-between mb-8">
+               <h3 className="text-xl font-black uppercase tracking-widest">Connect Wallet</h3>
+               <button onClick={() => setIsWalletModalOpen(false)} className="text-gray-500 hover:text-white transition-colors">
+                 <X size={20} />
+               </button>
+             </div>
              <div className="grid gap-3">
-               {['MetaMask', 'Phantom', 'Trust Wallet'].map(w => (
-                 <button key={w} onClick={() => connectWallet(w)} className="p-5 bg-gray-900/60 rounded-xl font-black text-left hover:bg-cyan-500 hover:text-black transition-all text-xs">
-                   {w}
+               {[
+                 { name: 'MetaMask', icon: '🦊' },
+                 { name: 'Phantom', icon: '👻' },
+                 { name: 'Trust Wallet', icon: '🛡️' },
+                 { name: 'WalletConnect', icon: '📱' },
+                 { name: 'Coinbase Wallet', icon: '🔵' },
+                 { name: 'SafePal', icon: '🔒' }
+               ].map(w => (
+                 <button 
+                  key={w.name} 
+                  onClick={() => connectWallet(w.name)} 
+                  className="p-5 bg-gray-900/60 border border-white/5 rounded-xl font-black text-left hover:bg-blue-600 hover:text-white transition-all text-xs flex items-center justify-between group"
+                 >
+                   <span>{w.name}</span>
+                   <span className="text-xl group-hover:scale-125 transition-transform">{w.icon}</span>
                  </button>
                ))}
+             </div>
+             <div className="mt-8 text-center">
+               <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">By connecting, you agree to the Terms of Service.</p>
              </div>
           </div>
         </div>
