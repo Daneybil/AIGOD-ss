@@ -41,6 +41,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const liveSessionRef = useRef<any>(null);
   const nextStartTimeRef = useRef(0);
+  const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -57,7 +58,8 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
     setSelectedImage(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+      // Create new GoogleGenAI instance directly using process.env.API_KEY
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const parts: any[] = [{ text: `${SYSTEM_INSTRUCTION}\n\nUser Query: ${inputText}` }];
       
       if (userMsg.image) {
@@ -75,47 +77,72 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
       });
 
       setMessages(prev => [...prev, { role: 'assistant', content: response.text || "I am processing your request. Please wait." }]);
-    } catch (error) {
-      console.error("AI Error:", error);
+    } catch (error: any) {
+      console.error("AI Error:", error?.message || "Communication failed");
       setMessages(prev => [...prev, { role: 'assistant', content: "An error occurred. Please contact @AIGODSCOIN on X." }]);
     }
   };
 
   const startVoiceCall = async () => {
     setIsInCall(true);
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    // Create new GoogleGenAI instance right before making an API call
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
     const outputNode = audioContextRef.current.createGain();
     outputNode.connect(audioContextRef.current.destination);
 
-    const sessionPromise = ai.live.connect({
-      model: 'gemini-2.5-flash-native-audio-preview-12-2025',
-      callbacks: {
-        onopen: () => console.log('Live session opened'),
-        onmessage: async (message: LiveServerMessage) => {
-          const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
-          if (base64Audio && audioContextRef.current) {
-            nextStartTimeRef.current = Math.max(nextStartTimeRef.current, audioContextRef.current.currentTime);
-            const audioBuffer = await decodeAudioData(decode(base64Audio), audioContextRef.current, 24000, 1);
-            const source = audioContextRef.current.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(outputNode);
-            source.start(nextStartTimeRef.current);
-            nextStartTimeRef.current += audioBuffer.duration;
+    try {
+      const sessionPromise = ai.live.connect({
+        model: 'gemini-2.5-flash-native-audio-preview-12-2025',
+        callbacks: {
+          onopen: () => console.log('Live session opened'),
+          onmessage: async (message: LiveServerMessage) => {
+            // Handle model interruption signal
+            const interrupted = message.serverContent?.interrupted;
+            if (interrupted) {
+              for (const source of sourcesRef.current.values()) {
+                source.stop();
+              }
+              sourcesRef.current.clear();
+              nextStartTimeRef.current = 0;
+              return;
+            }
+
+            const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+            if (base64Audio && audioContextRef.current) {
+              nextStartTimeRef.current = Math.max(nextStartTimeRef.current, audioContextRef.current.currentTime);
+              const audioBuffer = await decodeAudioData(decode(base64Audio), audioContextRef.current, 24000, 1);
+              const source = audioContextRef.current.createBufferSource();
+              source.buffer = audioBuffer;
+              source.connect(outputNode);
+              
+              source.onended = () => {
+                sourcesRef.current.delete(source);
+              };
+              
+              source.start(nextStartTimeRef.current);
+              nextStartTimeRef.current += audioBuffer.duration;
+              sourcesRef.current.add(source);
+            }
+          },
+          onclose: () => setIsInCall(false),
+          onerror: (e) => {
+            console.warn("Live Voice Status:", e instanceof Error ? e.message : "Disconnected");
           }
         },
-        onclose: () => setIsInCall(false),
-        onerror: (e) => console.error("Live Voice Error:", e)
-      },
-      config: {
-        responseModalities: [Modality.AUDIO],
-        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } },
-        systemInstruction: SYSTEM_INSTRUCTION
-      }
-    });
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } },
+          systemInstruction: SYSTEM_INSTRUCTION
+        }
+      });
 
-    liveSessionRef.current = await sessionPromise;
+      liveSessionRef.current = await sessionPromise;
+    } catch (err: any) {
+      console.warn("Could not start voice session:", err.message);
+      setIsInCall(false);
+    }
   };
 
   const endVoiceCall = () => {
@@ -123,6 +150,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
     setIsInCall(false);
   };
 
+  // Manual base64 decoding implementation as required
   const decode = (base64: string) => {
     const binaryString = atob(base64);
     const bytes = new Uint8Array(binaryString.length);
@@ -130,6 +158,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
     return bytes;
   };
 
+  // Manual raw PCM audio decoding as required for Live API streams
   const decodeAudioData = async (data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number) => {
     const dataInt16 = new Int16Array(data.buffer);
     const buffer = ctx.createBuffer(numChannels, dataInt16.length / numChannels, sampleRate);
@@ -164,13 +193,13 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
         <div className={`flex flex-col bg-[#050508] border border-gray-800 rounded-[3rem] shadow-2xl overflow-hidden transition-all ${isFullScreen ? 'fixed inset-4' : isMinimized ? 'h-20 w-80' : 'w-[90vw] md:w-[480px] h-[75vh]'}`}>
           <div className="p-6 bg-gray-900/60 border-b border-gray-800 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full border-2 border-cyan-400 overflow-hidden"><img src={logoUrl} /></div>
+              <div className="w-10 h-10 rounded-full border-2 border-cyan-400 overflow-hidden"><img src={logoUrl} className="w-full h-full object-cover" /></div>
               <h4 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-2">AIGODS AI <Sparkles size={12} /></h4>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 text-white">
               <button onClick={() => setIsMinimized(!isMinimized)}><Minimize2 size={18} /></button>
               <button onClick={() => setIsFullScreen(!isFullScreen)}><Maximize2 size={18} /></button>
-              <button onClick={() => setIsOpen(false)} className="text-red-500"><X size={24} /></button>
+              <button onClick={() => setIsOpen(false)} className="text-red-500 ml-2"><X size={24} /></button>
             </div>
           </div>
 
@@ -188,17 +217,18 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
                 {isInCall && (
                   <div className="flex flex-col items-center py-10 space-y-5">
                     <Volume2 size={48} className="text-cyan-400 animate-pulse" />
-                    <button onClick={endVoiceCall} className="bg-red-500 text-white px-8 py-3 rounded-xl font-bold">End Call</button>
+                    <p className="text-xs font-black uppercase tracking-widest text-cyan-400">Live Voice Protocol Active</p>
+                    <button onClick={endVoiceCall} className="bg-red-500 text-white px-8 py-3 rounded-xl font-bold uppercase text-xs">End Call</button>
                   </div>
                 )}
               </div>
 
               <div className="p-8 bg-gray-900/40 border-t border-gray-800">
-                {selectedImage && <div className="relative mb-4 inline-block"><img src={selectedImage} className="w-16 h-16 rounded-xl" /><button onClick={() => setSelectedImage(null)} className="absolute -top-2 -right-2 bg-red-500 p-1 rounded-full"><X size={10} /></button></div>}
+                {selectedImage && <div className="relative mb-4 inline-block"><img src={selectedImage} className="w-16 h-16 rounded-xl" /><button onClick={() => setSelectedImage(null)} className="absolute -top-2 -right-2 bg-red-500 p-1 rounded-full"><X size={10} className="text-white"/></button></div>}
                 <div className="flex items-center gap-4">
-                  <button onClick={() => fileInputRef.current?.click()} className="p-4 bg-gray-800 rounded-2xl"><ImageIcon size={24} /></button>
+                  <button onClick={() => fileInputRef.current?.click()} className="p-4 bg-gray-800 rounded-2xl text-white"><ImageIcon size={24} /></button>
                   <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
-                  <button onClick={startVoiceCall} className={`p-4 rounded-2xl ${isInCall ? 'bg-green-500' : 'bg-gray-800'}`}><Phone size={24} /></button>
+                  <button onClick={startVoiceCall} className={`p-4 rounded-2xl text-white ${isInCall ? 'bg-green-500' : 'bg-gray-800'}`}><Phone size={24} /></button>
                   <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} className="flex-1 bg-black rounded-2xl p-4 text-white focus:outline-none" placeholder="Ask AIGODS..." />
                   <button onClick={handleSendMessage} className="p-4 bg-cyan-500 text-black rounded-2xl"><Send size={24} /></button>
                 </div>

@@ -4,22 +4,26 @@ import { AIGODS_LOGO_URL } from '../constants';
 
 const ParticleBackground: React.FC = () => {
   return (
-    <div className="fixed inset-0 -z-20 overflow-hidden pointer-events-none bg-black">
-      {/* Main Large Background Image - Darkened and Slowly Zooming */}
+    <div className="fixed inset-0 -z-20 overflow-hidden pointer-events-none bg-[#0b0b0f]">
+      {/* Billboard Logo Background Style */}
       <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat animate-slow-zoom opacity-20"
+        className="absolute inset-0 bg-center bg-no-repeat opacity-30"
         style={{ 
           backgroundImage: `url('${AIGODS_LOGO_URL}')`,
-          filter: 'brightness(0.5) contrast(1.1) saturate(0.8)'
+          backgroundSize: 'contain',
+          filter: 'brightness(0.4) contrast(1.2)'
         }}
       />
-      {/* Darkened Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/95 mix-blend-multiply" />
-      <div className="absolute inset-0 animate-pulse-slow bg-cyan-500/5" />
+      
+      {/* Gradient Overlay for the Billboard Effect */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0b0b0f]/90 via-[#0b0b0f]/80 to-[#0b0b0f]/95" />
+      
+      {/* Subtly Animated Ambient Glow */}
+      <div className="absolute inset-0 animate-pulse-slow bg-cyan-500/5 mix-blend-screen" />
 
-      {/* Floating AIGODS Logos Animation */}
+      {/* Floating AIGODS Logos Animation - Kept for depth but reduced opacity */}
       <div className="absolute inset-0 overflow-hidden [perspective:1500px] z-10">
-        {[...Array(18)].map((_, i) => (
+        {[...Array(12)].map((_, i) => (
           <div 
             key={i}
             className="absolute animate-float"
@@ -27,22 +31,21 @@ const ParticleBackground: React.FC = () => {
               top: `${Math.random() * 100}%`,
               left: `${Math.random() * 100}%`,
               animationDelay: `${Math.random() * -40}s`,
-              animationDuration: `${20 + Math.random() * 25}s`,
+              animationDuration: `${25 + Math.random() * 30}s`,
             }}
           >
             <div 
-              className="relative w-12 h-12 md:w-20 md:h-20 [transform-style:preserve-3d] animate-coin-rotate-y"
+              className="relative w-10 h-10 md:w-16 md:h-16 [transform-style:preserve-3d] animate-coin-rotate-y"
               style={{ 
-                animationDuration: `${5 + Math.random() * 8}s`, 
-                opacity: 0.2 + Math.random() * 0.3 
+                animationDuration: `${8 + Math.random() * 12}s`, 
+                opacity: 0.1 + Math.random() * 0.15 
               }}
             >
-              {/* Floating Logo Particle */}
-              <div className="absolute inset-0 rounded-full overflow-hidden border border-white/10 bg-black/40 backdrop-blur-sm">
+              <div className="absolute inset-0 rounded-full overflow-hidden border border-white/5 bg-black/20 backdrop-blur-[2px]">
                 <img 
                   src={AIGODS_LOGO_URL} 
                   alt="Gods Logo" 
-                  className="w-full h-full object-cover grayscale brightness-75" 
+                  className="w-full h-full object-cover grayscale brightness-50" 
                 />
               </div>
             </div>

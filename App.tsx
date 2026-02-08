@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Twitter, 
@@ -7,21 +6,24 @@ import {
   Youtube, 
   ShieldCheck, 
   Copy, 
-  CreditCard,
   ExternalLink,
   Lock,
-  Zap,
-  CheckCircle2,
-  X,
   Wallet2,
-  ChevronRight,
+  X,
   Share2,
   Globe,
   FileText,
   Trophy,
   CreditCard as CardIcon,
   Crown,
-  Sparkles
+  Sparkles,
+  ChevronRight,
+  MessageCircle,
+  AlertCircle,
+  RefreshCw,
+  Zap,
+  Shield,
+  Clock
 } from 'lucide-react';
 import LogoGrid from './components/LogoGrid';
 import ParticleBackground from './components/ParticleBackground';
@@ -32,7 +34,7 @@ import { AIGODS_LOGO_URL } from './constants';
 // @ts-ignore
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 // @ts-ignore
-import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, getDocs, query, orderBy, limit } 
+import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, getDocs, query, orderBy, limit, enableIndexedDbPersistence, onSnapshot, increment, addDoc } 
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -47,6 +49,19 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// Attempt to enable offline persistence to prevent "client is offline" errors
+try {
+  enableIndexedDbPersistence(db).catch((err: any) => {
+    if (err.code === 'failed-precondition') {
+      console.warn("Persistence failed: Multiple tabs open");
+    } else if (err.code === 'unimplemented') {
+      console.warn("Persistence failed: Browser doesn't support it");
+    }
+  });
+} catch (e) {
+  console.warn("Persistence init error:", e);
+}
+
 const App: React.FC = () => {
   const [calcAmount, setCalcAmount] = useState<string>('0.0');
   const [calcChain, setCalcChain] = useState<string>('BNB');
@@ -59,8 +74,10 @@ const App: React.FC = () => {
   const [isWhitepaperOpen, setIsWhitepaperOpen] = useState(false);
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
   const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
-  const [activeNetwork, setActiveNetwork] = useState<string>('BNB CHAIN');
+  const [liveFeedData, setLiveFeedData] = useState<any[]>([]);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
+  const [firebaseError, setFirebaseError] = useState<string | null>(null);
 
   // Social Task States
   const [taskTwitter, setTaskTwitter] = useState(false);
@@ -105,56 +122,26 @@ const App: React.FC = () => {
     alert('Link copied to clipboard!');
   };
 
-  const switchNetwork = async (network: string) => {
-    if (!(window as any).ethereum) {
-      alert("Please install MetaMask!");
-      return;
-    }
-
-    let chainData;
-    if (network === "BSC Mainnet") {
-      chainData = {
-        chainId: "0x38",
-        chainName: "Binance Smart Chain",
-        rpcUrls: ["https://bsc-dataseed.binance.org/"],
-        nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
-        blockExplorerUrls: ["https://bscscan.com"]
-      };
-    } else if (network === "Polygon Mainnet") {
-      chainData = {
-        chainId: "0x89",
-        chainName: "Polygon Mainnet",
-        rpcUrls: ["https://polygon-rpc.com/"],
-        nativeCurrency: { name: "MATIC", symbol: "MATIC", decimals: 18 },
-        blockExplorerUrls: ["https://polygonscan.com"]
-      };
-    }
-
-    if (chainData) {
-      try {
-        await (window as any).ethereum.request({
-          method: "wallet_addEthereumChain",
-          params: [chainData]
-        });
-      } catch (err) {
-        console.error("Network switch error:", err);
-      }
-    }
-  };
-
   const ensureUserRecord = async (address: string) => {
-    const userRef = doc(db, "users", address);
-    const snap = await getDoc(userRef);
-    if (!snap.exists()) {
-      await setDoc(userRef, {
-        referrals: 0,
-        airdropClaimed: false,
-        lastSeen: new Date().toISOString()
-      });
+    try {
+      const userRef = doc(db, "users", address);
+      const snap = await getDoc(userRef);
+      if (!snap.exists()) {
+        await setDoc(userRef, {
+          referrals: 0,
+          airdropClaimed: false,
+          lastSeen: new Date().toISOString(),
+          lastAction: 0
+        });
+      }
+    } catch (err: any) {
+      console.error("Firestore error in ensureUserRecord:", err?.message || err);
     }
   };
 
   const loadLeaderboard = async () => {
+    setFirebaseError(null);
+    setIsLeaderboardLoading(true);
     try {
       const q = query(collection(db, "users"), orderBy("referrals", "desc"), limit(10));
       const querySnapshot = await getDocs(q);
@@ -163,21 +150,51 @@ const App: React.FC = () => {
         data.push({ address: doc.id, ...doc.data() });
       });
       setLeaderboardData(data);
-    } catch (err) {
-      console.error("Leaderboard error:", err);
+    } catch (err: any) {
+      console.error("Leaderboard error:", err?.message || err);
+      if (err.message && err.message.includes("offline")) {
+        setFirebaseError("Connection currently unavailable. Showing cached data if possible.");
+      } else {
+        setFirebaseError("Leaderboard access restricted. Please try again later.");
+      }
+    } finally {
+      setIsLeaderboardLoading(false);
     }
   };
 
-  const handleNetworkClick = (network: string) => {
-    setActiveNetwork(network);
-    if (!connectedAddress && network !== 'DEBIT/CREDIT') {
-      setIsWalletModalOpen(true);
-    } else if (network === 'BNB CHAIN') {
-      switchNetwork("BSC Mainnet");
-    } else if (network === 'POLYGON') {
-      switchNetwork("Polygon Mainnet");
+  // Real-time listeners for challenge data
+  useEffect(() => {
+    if (isChallengeModalOpen) {
+      // Leaderboard Real-time Listener
+      const q = query(collection(db, "users"), orderBy("referrals", "desc"), limit(10));
+      const unsubLeaderboard = onSnapshot(q, (snapshot) => {
+        const data: any[] = [];
+        snapshot.forEach((doc) => {
+          data.push({ address: doc.id, ...doc.data() });
+        });
+        setLeaderboardData(data);
+      }, (err) => {
+        console.warn("Live Leaderboard Access Restricted:", err.message);
+      });
+
+      // Live Feed Real-time Listener
+      const feedQ = query(collection(db, "feed"), orderBy("time", "desc"), limit(15));
+      const unsubFeed = onSnapshot(feedQ, (snapshot) => {
+        const data: any[] = [];
+        snapshot.forEach((doc) => {
+          data.push({ id: doc.id, ...doc.data() });
+        });
+        setLiveFeedData(data);
+      }, (err) => {
+        console.warn("Live Feed Access Restricted:", err.message);
+      });
+
+      return () => {
+        unsubLeaderboard();
+        unsubFeed();
+      };
     }
-  };
+  }, [isChallengeModalOpen]);
 
   const connectWallet = (walletName: string) => {
     setIsConnecting(true);
@@ -190,7 +207,7 @@ const App: React.FC = () => {
           setIsWalletModalOpen(false);
         })
         .catch((err: any) => {
-          console.error(err);
+          console.error("Wallet error:", err?.message || err);
           setIsConnecting(false);
         });
     } else {
@@ -209,231 +226,784 @@ const App: React.FC = () => {
       setIsWalletModalOpen(true);
       return;
     }
-    
     if (!taskTwitter || !taskTelegram || !taskYoutube) {
-      alert("Please complete all social tasks before claiming your airdrop.");
+      alert("Please complete all social tasks before claiming.");
       return;
     }
-
     if (claimedWallets.has(connectedAddress)) {
       alert("This wallet has already claimed the 100 AIGODS free tokens.");
       return;
     }
-
     try {
       const ref = doc(db, "users", connectedAddress);
       const snap = await getDoc(ref);
       if (snap.exists() && snap.data().airdropClaimed) {
-        alert("Airdrop already claimed via blockchain records.");
+        alert("Airdrop already claimed.");
         return;
       }
       await updateDoc(ref, { airdropClaimed: true });
       setClaimedWallets(prev => new Set(prev).add(connectedAddress));
-      alert("Success! 100 AIGODS have been added to your claiming queue. These will be distributed at TGE.");
+      alert("Success! 100 AIGODS added to queue.");
     } catch (e) {
       setClaimedWallets(prev => new Set(prev).add(connectedAddress));
-      alert("Success! 100 AIGODS have been added to your claiming queue.");
+      alert("Success! 100 AIGODS added to queue.");
     }
   };
 
-  useEffect(() => {
-    if (isChallengeModalOpen) {
-      loadLeaderboard();
+  const handleWhitepaperReferral = () => {
+    if (!connectedAddress) {
+      alert("Please connect your wallet first to generate your unique referral link.");
+      setIsWalletModalOpen(true);
+    } else {
+      copyToClipboard(`${window.location.origin}?ref=${connectedAddress}`);
     }
-  }, [isChallengeModalOpen]);
+  };
+
+  const handleWhitepaperBuy = () => {
+    setIsWhitepaperOpen(false);
+    setTimeout(() => {
+      const el = document.getElementById('buy-input-section');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.focus();
+      }
+    }, 150);
+  };
+
+  const getBadge = (rank: number) => {
+    if (rank === 1) return "👑 Champion";
+    if (rank === 2) return "🔥 Elite";
+    if (rank === 3) return "⭐ Pro";
+    return "🚀 Rising";
+  };
+
+  const userReferrals = useMemo(() => {
+    if (!connectedAddress) return 0;
+    const user = leaderboardData.find(u => u.address.toLowerCase() === connectedAddress.toLowerCase());
+    return user?.referrals || 0;
+  }, [connectedAddress, leaderboardData]);
 
   return (
-    <div className="min-h-screen relative flex flex-col items-center py-6 px-4 md:px-0 bg-transparent">
+    <div className="min-h-screen relative flex flex-col items-center bg-black overflow-x-hidden pb-10 font-inter text-white">
       <ParticleBackground />
-
       <ChatAssistant logoUrl={AIGODS_LOGO_URL} />
 
-      {/* Header Area */}
-      <div className="w-full max-w-7xl flex flex-col md:flex-row items-center justify-between mb-10 px-4 gap-6">
-        {/* Top Left: Wallet Connect & White Paper */}
-        <div className="flex items-center gap-3 order-2 md:order-1">
+      {/* 1. TOP NAVIGATION HEADER */}
+      <div className="w-full max-w-[1400px] flex items-center justify-between px-4 md:px-6 py-6 z-[50]">
+        <div className="flex items-center gap-3 md:gap-6">
           <button 
-            onClick={() => connectedAddress ? null : setIsWalletModalOpen(true)}
-            className="bg-cyan-500/10 backdrop-blur-md border border-cyan-500/30 text-cyan-400 font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-cyan-500/20 transition-all text-[10px] uppercase tracking-widest shadow-lg shadow-cyan-500/5"
+            onClick={() => setIsWalletModalOpen(true)}
+            className="flex items-center gap-2 px-5 py-2.5 md:px-8 md:py-4 border-2 border-cyan-500/60 rounded-xl bg-cyan-500/10 text-[10px] md:text-sm font-black uppercase tracking-widest text-cyan-400 hover:bg-cyan-500/20 transition-all animate-dim-light-blue shadow-[0_0_20px_rgba(0,255,255,0.15)]"
           >
-            <Wallet2 size={14} />
+            <Wallet2 size={16} />
             <span>{connectedAddress ? `${connectedAddress.slice(0,6)}...${connectedAddress.slice(-4)}` : 'Connect Wallet'}</span>
           </button>
+          {/* WHITE PAPER BUTTON AT TOP RIGHT */}
           <button 
             onClick={() => setIsWhitepaperOpen(true)}
-            className="bg-gray-900/60 backdrop-blur-md border border-white/10 text-white font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-white/5 transition-all text-[10px] uppercase tracking-widest"
+            className="flex items-center gap-2 px-5 py-2.5 md:px-8 md:py-4 border-2 border-blue-500/60 rounded-xl bg-blue-500/10 text-[10px] md:text-sm font-black uppercase tracking-widest text-blue-400 hover:bg-blue-500/20 transition-all animate-dim-light-blue shadow-[0_0_20px_rgba(0,255,255,0.15)]"
           >
-            <FileText size={14} className="text-cyan-400" />
+            <FileText size={16} />
             <span>White Paper</span>
           </button>
         </div>
 
-        {/* Top Middle: Reward Challenge Button - UPDATED TO BLUE */}
-        <div className="order-1 md:order-2">
+        <div>
           <button 
             onClick={() => setIsChallengeModalOpen(true)}
-            className="bg-gradient-to-r from-blue-600 via-cyan-500 to-blue-600 text-white font-black px-8 py-3 rounded-full flex items-center gap-3 hover:scale-105 transition-all shadow-[0_0_30px_rgba(37,99,235,0.4)] text-[11px] md:text-xs uppercase tracking-tighter border border-white/10"
+            className="flex items-center gap-2 px-4 py-2 md:px-8 md:py-2.5 bg-gradient-to-r from-blue-700 to-blue-500 rounded-full text-[9px] md:text-[11px] font-black uppercase tracking-tight text-white shadow-lg shadow-blue-500/30 hover:scale-105 transition-all"
           >
-            <img src={AIGODS_LOGO_URL} className="w-6 h-6 rounded-full border border-white/20" alt="Logo" />
+            <img src={AIGODS_LOGO_URL} className="w-4 h-4 rounded-full" alt="icon" />
             AIGOD'S REFERRAL REWARDS CHALLENGE
           </button>
         </div>
 
-        {/* Top Right: Logo Icon */}
-        <div className="relative group cursor-pointer order-3">
-          <div className="absolute inset-0 bg-cyan-500/10 rounded-full blur-xl group-hover:bg-cyan-500/20 transition-all"></div>
-          <img 
-            src={AIGODS_LOGO_URL} 
-            alt="AIGODS Logo Icon" 
-            className="w-12 h-12 md:w-16 md:h-16 rounded-full border-2 border-white/10 relative z-10 hover:border-cyan-500/40 transition-all animate-coin-rotate-y"
-          />
+        <div className="hidden md:block">
+           <img src={AIGODS_LOGO_URL} className="w-10 h-10 rounded-full border border-white/10 animate-coin-rotate-y" alt="logo" />
         </div>
       </div>
 
-      {/* Challenge Modal */}
+      {/* 2. HERO SECTION */}
+      <div className="w-full max-w-4xl px-4 flex flex-col items-center mt-6">
+        <div className="w-full max-w-[95%] md:max-w-4xl py-6 md:py-8 px-4 rounded-full bg-gradient-to-r from-[#ff00ff] via-[#00ffff] to-[#00ffff] flex items-center justify-center shadow-[0_0_60px_rgba(0,255,255,0.5)] mb-14 transition-all text-center">
+           <h2 className="text-xl md:text-5xl font-black italic text-black uppercase tracking-tighter leading-none">
+             LAUNCHING SOON — 10$ BILLION+ BACKED
+           </h2>
+        </div>
+
+        <h1 className="text-7xl md:text-[12rem] font-black text-gradient-magenta leading-none uppercase tracking-tighter mb-4 drop-shadow-2xl">
+          AIGODS
+        </h1>
+
+        <p className="text-cyan-400 font-black tracking-[0.2em] text-[10px] md:text-sm uppercase mb-8 italic text-center">
+          THE FUTURE IS NOW – BECOME A GOD <br className="md:hidden" /> IN CRYPTO 👑
+        </p>
+
+        <div className="max-w-2xl text-center mb-12">
+          <p className="text-white text-sm md:text-xl font-bold mb-4">
+            <span className="text-cyan-400">AIGODS</span> is the world's first decentralized superintelligence token, powering AI agents and autonomous economies.
+          </p>
+          <p className="text-[9px] md:text-[11px] text-gray-500 font-black uppercase tracking-widest leading-relaxed">
+            BACKED / PARTNERED BY <span className="text-white">BLACKROCK, TESLA, TWITTER/X, OPENAI, NVIDIA, GOOGLE, APPLE, MICROSOFT</span> AND OTHERS WITH OVER <span className="text-white">$10 BILLION</span> IN COMMITTED CAPITAL.
+          </p>
+        </div>
+
+        <div className="w-full max-w-3xl aspect-video rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl mb-24 relative bg-gray-900">
+           <iframe 
+             className="w-full h-full"
+             src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0&controls=1" 
+             title="AIGODS Trailer"
+             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+             allowFullScreen
+           ></iframe>
+        </div>
+
+        <h2 className="text-5xl md:text-8xl font-black text-[#00ffff] uppercase tracking-tighter mb-12 italic text-center">
+          PRESALE DETAILS
+        </h2>
+
+        {/* PRICING CARDS */}
+        <div className="w-full max-w-2xl flex flex-col gap-6 mb-16">
+          <div className="w-full p-8 md:p-12 bg-black/40 border border-gray-800 rounded-[2rem] text-center flex flex-col items-center justify-center transition-all">
+            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">STAGE 1 PRICE</span>
+            <span className="text-7xl md:text-[6rem] font-black text-white leading-none">$0.20</span>
+            <div className="flex items-center gap-2 mt-4">
+              <div className="w-2.5 h-2.5 rounded-full bg-[#16da64] animate-pulse"></div>
+              <span className="text-[11px] font-black text-[#16da64] uppercase tracking-widest">ACTIVE NOW</span>
+            </div>
+          </div>
+
+          <div className="w-full p-8 md:p-12 bg-black/40 border border-gray-800 rounded-[2rem] text-center flex flex-col items-center justify-center opacity-40">
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">STAGE 2 PRICE</span>
+            <span className="text-7xl md:text-[6rem] font-black text-gray-400 leading-none">$0.80</span>
+            <span className="text-[11px] font-black text-gray-500 uppercase tracking-widest mt-4">NEXT PHASE</span>
+          </div>
+
+          <div className="w-full p-8 md:p-12 bg-black/60 border-2 border-cyan-400 rounded-[2.5rem] text-center flex flex-col items-center justify-center shadow-[0_0_60px_rgba(0,255,255,0.15)] relative overflow-hidden">
+            <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mb-2 italic">TARGET LAUNCHING PRICE</span>
+            <span className="text-8xl md:text-[8rem] font-black text-white leading-none">$3.50</span>
+            <span className="text-[12px] md:text-[14px] font-black text-cyan-400 uppercase tracking-[0.5em] mt-6 italic">2026</span>
+          </div>
+        </div>
+
+        {/* MULTIPLIER SECTION */}
+        <div className="w-full max-w-2xl flex items-center justify-around mb-20">
+          <div className="text-center px-8 border-r border-gray-800 flex-1">
+             <div className="text-6xl md:text-8xl font-black text-white">17.5X</div>
+             <div className="text-[9px] md:text-[11px] font-black text-green-500 mt-2 uppercase tracking-widest">-- STAGE 1 RETURNS --</div>
+          </div>
+          <div className="text-center px-8 flex-1">
+             <div className="text-6xl md:text-8xl font-black text-white">4.375X</div>
+             <div className="text-[9px] md:text-[11px] font-black text-green-500 mt-2 uppercase tracking-widest">-- STAGE 2 RETURNS --</div>
+          </div>
+        </div>
+
+        {/* WALLET SYSTEM & 3D COIN */}
+        <h2 className="text-2xl md:text-4xl font-black text-white uppercase tracking-[0.3em] mb-12 text-center">AIGODS WALLET SYSTEM</h2>
+        
+        <div className="coin-container mb-12 scale-75 md:scale-100">
+          <div className="coin-3d">
+            <div className="coin-edge"></div>
+            <div className="coin-face coin-face-front">
+              <img src={AIGODS_LOGO_URL} alt="AIGODS Front" />
+            </div>
+            <div className="coin-face coin-face-back">
+              <img src={AIGODS_LOGO_URL} alt="AIGODS Back" />
+            </div>
+          </div>
+        </div>
+
+        {/* CONNECT WALLET BUTTON */}
+        <div className="flex flex-col items-center gap-4 mb-24">
+           <button 
+             onClick={() => setIsWalletModalOpen(true)}
+             className="px-16 py-5 bg-cyan-400 rounded-2xl font-black text-black text-xl uppercase tracking-widest shadow-[0_0_40px_rgba(34,211,238,0.5)] hover:scale-105 transition-all"
+           >
+             CONNECT WALLET
+           </button>
+           <span className="text-xs font-black text-gray-500 uppercase tracking-widest">
+             {connectedAddress ? `CONNECTED: ${connectedAddress.slice(0,10)}...` : 'NOT CONNECTED'}
+           </span>
+        </div>
+
+        {/* TOKEN CALCULATOR CARD */}
+        <div className="w-full max-w-2xl bg-[#080812] border border-gray-800 rounded-[2.5rem] p-10 md:p-14 shadow-2xl mb-12">
+           <h3 className="text-cyan-400 font-black text-[10px] uppercase tracking-[0.4em] text-center mb-10">TOKEN CALCULATOR</h3>
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+              <div className="space-y-3">
+                 <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">INVESTMENT AMOUNT</label>
+                 <input 
+                   type="text" 
+                   value={calcAmount}
+                   onChange={(e) => setCalcAmount(e.target.value)}
+                   className="w-full bg-black/40 border border-gray-800 rounded-xl p-4 text-white font-bold text-lg focus:border-cyan-500/50 outline-none"
+                 />
+              </div>
+              <div className="space-y-3">
+                 <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">ASSET</label>
+                 <select 
+                   value={calcChain}
+                   onChange={(e) => setCalcChain(e.target.value)}
+                   className="w-full bg-black/40 border border-gray-800 rounded-xl p-4 text-white font-bold text-lg outline-none cursor-pointer"
+                 >
+                   <option>BNB</option>
+                   <option>SOL</option>
+                   <option>MATIC</option>
+                 </select>
+              </div>
+           </div>
+           
+           <div className="space-y-3 mb-10">
+              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">PRESALE PHASE</label>
+              <select 
+                value={calcStage}
+                onChange={(e) => setCalcStage(e.target.value)}
+                className="w-full bg-black/40 border border-gray-800 rounded-xl p-4 text-white font-bold text-lg outline-none cursor-pointer"
+              >
+                <option>Stage 1 ($0.20)</option>
+                <option>Stage 2 ($0.80)</option>
+              </select>
+           </div>
+
+           <div className="bg-black/60 p-10 rounded-[2rem] border border-gray-800 text-center">
+              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-4">EQUIVALENT AIGODS TOKENS</p>
+              <p className="text-8xl font-black text-cyan-400 font-black leading-none mb-6">{calculatedTokens.toLocaleString()}</p>
+              <p className="text-[11px] font-bold text-[#16da64]">
+                 Potential Listing Value: ${potentialProfit} ({potentialX}X)
+              </p>
+           </div>
+        </div>
+
+        {/* NETWORK BUTTONS */}
+        <div className="flex flex-wrap items-center justify-center gap-4 mb-10">
+           <button className="px-6 py-4 bg-[#f3ba2f] text-black rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg">BNB CHAIN</button>
+           <button className="px-6 py-4 bg-[#0a0a14] border border-gray-800 text-white rounded-xl font-black text-[10px] uppercase tracking-widest opacity-60">POLYGON</button>
+           <button className="px-6 py-4 bg-[#0a0a14] border border-gray-800 text-white rounded-xl font-black text-[10px] uppercase tracking-widest opacity-60">SOLANA</button>
+           <button className="px-6 py-4 bg-[#0a0a14] border border-gray-800 text-white rounded-xl font-black text-[10px] uppercase tracking-widest opacity-60 flex items-center gap-2">
+              <CardIcon size={14} /> DEBIT/CREDIT <span className="text-[8px] bg-blue-600 px-1 rounded ml-1">FASTEST OPTION</span>
+           </button>
+        </div>
+
+        {/* BUY SECTION */}
+        <div id="buy-input-section" className="w-full max-w-2xl flex flex-col md:flex-row gap-4 mb-24">
+           <input 
+             type="text"
+             placeholder="Amount (BNB/SOL/MATIC/USDT)"
+             className="flex-1 bg-black/60 border border-gray-800 rounded-[1.5rem] p-6 text-white font-bold outline-none"
+             value={buyInput}
+             onChange={(e) => setBuyInput(e.target.value)}
+           />
+           <button className="px-12 py-6 bg-gradient-to-r from-[#ff00ff] via-[#8b5cf6] to-[#00ffff] rounded-[1.5rem] text-black font-black text-xl uppercase tracking-tighter shadow-xl hover:scale-[1.02] transition-all">
+             BUY AIGODS NOW
+           </button>
+        </div>
+
+        {/* SOCIAL TASKS SECTION */}
+        <div className="w-full max-w-2xl bg-[#080812]/80 backdrop-blur-md border border-gray-800 rounded-[2.5rem] p-10 md:p-12 text-center shadow-2xl mb-10">
+           <h3 className="text-white font-black text-xl uppercase tracking-widest mb-10">COMPLETE TASKS BEFORE CLAIMING</h3>
+           <div className="flex flex-col gap-6 max-w-sm mx-auto text-left">
+              {[
+                { id: 't1', label: 'FOLLOW TWITTER', state: taskTwitter, set: setTaskTwitter },
+                { id: 't2', label: 'JOIN TELEGRAM', state: taskTelegram, set: setTaskTelegram },
+                { id: 't3', label: 'SUBSCRIBE YOUTUBE', state: taskYoutube, set: setTaskYoutube }
+              ].map(task => (
+                <label key={task.id} className="flex items-center gap-5 cursor-pointer group">
+                  <div className={`w-6 h-6 border-2 border-gray-700 rounded flex items-center justify-center transition-all ${task.state ? 'bg-cyan-500 border-cyan-500' : 'bg-black'}`}>
+                    {task.state && <Sparkles size={14} className="text-black" />}
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    className="hidden" 
+                    checked={task.state} 
+                    onChange={(e) => task.set(e.target.checked)} 
+                  />
+                  <span className="text-sm font-black text-gray-500 group-hover:text-white transition-all uppercase tracking-[0.2em]">{task.label}</span>
+                </label>
+              ))}
+           </div>
+        </div>
+
+        {/* CLAIM BUTTON */}
+        <div className="w-full max-w-2xl mb-16">
+          <button 
+            onClick={handleClaimAirdrop}
+            className="w-full py-10 rounded-[2rem] bg-[#16da64] text-black font-black text-3xl md:text-5xl uppercase tracking-tighter hover:scale-[1.02] transition-all shadow-[0_0_50px_rgba(22,218,100,0.6)] leading-none"
+          >
+            CLAIM 100 AIGODS FREE
+          </button>
+        </div>
+
+        {/* ARCHITECT REFERRAL SECTION */}
+        <div className="w-full max-w-4xl bg-[#080812] border border-gray-800/60 rounded-[3rem] p-10 md:p-16 mb-24 relative overflow-hidden text-center shadow-[0_0_100px_rgba(0,0,0,0.9)]">
+           <h3 className="text-5xl md:text-[5.5rem] font-black italic tracking-tighter uppercase leading-none mb-10">
+             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00ffff] to-[#ff00ff]">BECOME AN AIGODS</span> <br/>
+             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00ffff] to-[#ff00ff]">ARCHITECT</span>
+           </h3>
+
+           <div className="space-y-6 mb-12">
+              <h4 className="text-[11px] md:text-sm font-black text-cyan-400 uppercase tracking-[0.5em] mb-4">VIRAL GROWTH IS THE ENGINE OF OUR REVOLUTION.</h4>
+              <p className="text-[10px] md:text-[11px] text-gray-400 font-bold leading-relaxed max-w-2xl mx-auto uppercase tracking-widest px-4">
+                Referrals are the <span className="text-white font-black italic">fastest way</span> to promote AIGODS. By sharing, you don't just support the project — you earn <span className="text-[#16da64] font-black italic">20% instant rewards</span> from any total investment made through your referral link.
+              </p>
+           </div>
+
+           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center max-w-3xl mx-auto">
+              <div className="md:col-span-8 bg-black border border-gray-800 rounded-2xl p-4 flex items-center justify-between text-gray-500 text-[10px] font-bold overflow-hidden h-16 shadow-inner">
+                 <span className="truncate pr-4">{connectedAddress ? `${window.location.origin}?ref=${connectedAddress}` : "Connect wallet to generate referral link"}</span>
+                 <Lock size={16} className="opacity-40 shrink-0" />
+              </div>
+              <div className="md:col-span-4">
+                <button 
+                  onClick={() => connectedAddress && copyToClipboard(`${window.location.origin}?ref=${connectedAddress}`)}
+                  className="w-full bg-white text-black font-black py-4 rounded-2xl flex items-center justify-center gap-3 hover:bg-gray-200 transition-all text-sm uppercase h-16"
+                >
+                  <Copy size={20} /> COPY LINK
+                </button>
+              </div>
+           </div>
+
+           <div className="mt-8">
+              <span className="text-[10px] font-black text-[#ff00ff] tracking-[0.2em] uppercase italic">MUST CONNECT WALLET TO UNLOCK REFERRAL REWARDS</span>
+           </div>
+        </div>
+
+        {/* ===== MoonPay Buy BNB Section (AIGODS Integration) ===== */}
+        <section id="moonpay-buy-section" className="w-full max-w-4xl mx-auto" style={{
+          background: 'linear-gradient(135deg, #0f172a, #020617)',
+          padding: '60px 20px',
+          textAlign: 'center',
+          borderRadius: '20px',
+          margin: '40px 0',
+          color: 'white',
+          fontFamily: 'Arial, sans-serif',
+        }}>
+
+          <h2 style={{ fontSize: '32px', marginBottom: '15px' }}>
+            Buy BNB Instantly with MoonPay
+          </h2>
+
+          <p style={{ maxWidth: '700px', margin: 'auto', lineHeight: '1.6', opacity: '0.9' }}>
+            Don’t have BNB yet? You can instantly purchase BNB using your debit or credit card
+            through our secure MoonPay gateway. After buying BNB, you can use it to participate
+            in the AI GODS pre-sale and purchase AIGODS tokens directly.
+          </p>
+
+          <p style={{ maxWidth: '700px', margin: '15px auto', fontSize: '14px', opacity: '0.8' }}>
+            MoonPay is a trusted global crypto payment provider used by millions of users
+            worldwide. All transactions are processed securely.
+          </p>
+
+          <a href="https://www.moonpay.com/buy"
+             target="_blank"
+             style={{
+               display: 'inline-block',
+               marginTop: '25px',
+               padding: '15px 35px',
+               background: 'linear-gradient(90deg, #22c55e, #16a34a)',
+               color: 'white',
+               fontSize: '18px',
+               borderRadius: '12px',
+               textDecoration: 'none',
+               fontWeight: 'bold',
+               boxShadow: '0 0 20px rgba(34,197,94,0.5)',
+               transition: '0.3s ease',
+             }}
+             onMouseOver={(e) => { (e.currentTarget as any).style.transform='scale(1.05)'; }}
+             onMouseOut={(e) => { (e.currentTarget as any).style.transform='scale(1)'; }}
+          >
+            Buy BNB with MoonPay
+          </a>
+
+        </section>
+        {/* ===== End MoonPay Section ===== */}
+
+        {/* LOGO GRID SECTION */}
+        <LogoGrid />
+
+        {/* AUDITED BY CERTIK SECTION */}
+        <div className="w-full max-w-4xl px-4 mt-24">
+          <div className="bg-[#050508] border border-green-500/20 rounded-[3rem] p-12 text-center relative overflow-hidden shadow-2xl">
+             <div className="bg-green-500/10 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-8 border border-green-500/30">
+                <ShieldCheck size={40} className="text-green-500" />
+             </div>
+             <h4 className="text-3xl md:text-5xl font-black text-white uppercase tracking-tighter mb-6">AUDITED BY CERTIK</h4>
+             <p className="text-[11px] md:text-xs text-gray-400 font-medium leading-relaxed max-w-xl mx-auto mb-10 uppercase tracking-widest">
+               The AIGODS smart contract has successfully passed comprehensive security audits by CertiK, ensuring maximum safety for all investors.
+             </p>
+             <button className="bg-transparent border border-green-500/30 text-green-500 px-14 py-4 rounded-full text-xs font-black uppercase tracking-[0.3em] hover:bg-green-500 hover:text-black transition-all flex items-center gap-3 mx-auto">
+               VIEW AUDIT REPORT <ExternalLink size={16} />
+             </button>
+          </div>
+        </div>
+
+        {/* FOOTER SOCIALS */}
+        <div className="w-full max-w-5xl px-4 grid grid-cols-1 md:grid-cols-2 gap-20 mt-32 text-center md:text-left">
+           <div className="space-y-10">
+              <h5 className="text-cyan-400 text-3xl font-black italic uppercase tracking-tighter">AIGODS OFFICIAL</h5>
+              <div className="flex items-center justify-center md:justify-start gap-12">
+                 <a href="https://x.com/AIGODSCOIN" target="_blank" rel="noopener noreferrer"><Twitter size={36} className="text-cyan-400 hover:scale-110 transition-all cursor-pointer" /></a>
+                 <a href="https://t.me/AIGODSCOINOFFICIAL" target="_blank" rel="noopener noreferrer"><Send size={36} className="text-cyan-400 hover:scale-110 transition-all cursor-pointer" /></a>
+                 <a href="https://t.me/AIGODSCOIN" target="_blank" rel="noopener noreferrer"><MessageCircle size={36} className="text-cyan-400 hover:scale-110 transition-all cursor-pointer" /></a>
+                 <a href="https://www.youtube.com/@AIGODSCOINOFFICIAL" target="_blank" rel="noopener noreferrer"><Youtube size={36} className="text-cyan-400 hover:scale-110 transition-all cursor-pointer" /></a>
+              </div>
+              <p className="text-[10px] font-black text-gray-700 uppercase tracking-widest">JOIN THE FASTEST GROWING DECENTRALIZED AI COMMUNITY.</p>
+           </div>
+           <div className="space-y-10">
+              <h5 className="text-[#ff00ff] text-3xl font-black italic uppercase tracking-tighter">INFLUENCER HUB</h5>
+              <div className="flex items-center justify-center md:justify-start gap-12">
+                 <a href="https://x.com/AIGODSCOIN" target="_blank" rel="noopener noreferrer"><Twitter size={36} className="text-[#ff00ff] hover:scale-110 transition-all cursor-pointer" /></a>
+                 <a href="https://x.com/AIGODSCOIN" target="_blank" rel="noopener noreferrer"><span className="text-white hover:scale-110 transition-all font-black text-4xl cursor-pointer">X</span></a>
+                 <a href="https://aigodscoin.com" target="_blank" rel="noopener noreferrer"><Globe size={36} className="text-white hover:scale-110 transition-all cursor-pointer" /></a>
+              </div>
+              <p className="text-[10px] font-black text-gray-700 uppercase tracking-widest">BRIDGING THE GAP BETWEEN TITANS AND THE FUTURE.</p>
+           </div>
+        </div>
+
+        {/* FINAL LEGAL FOOTER */}
+        <div className="w-full max-w-6xl px-4 text-center space-y-10 pb-24 border-t border-gray-900 pt-20 mt-32">
+          <h6 className="text-gray-500 font-black text-[12px] tracking-[0.6em] uppercase italic">© 2026 AI GODS – THE INTELLIGENCE LAYER OF WEB3</h6>
+          <p className="text-[10px] text-gray-700 font-bold uppercase leading-relaxed tracking-widest max-w-5xl mx-auto">
+            AIGODS STANDS AT THE ABSOLUTE VANGUARD OF THE DECENTRALIZED INTELLIGENCE MOVEMENT, PIONEERING A MULTI-BILLION DOLLAR ECOSYSTEM BACKED BY THE WORLD'S MOST INNOVATIVE GIANTS. AS WE BUILD THIS UNPARALLELED LEGACY, WE REMIND OUR VISIONARIES THAT THE DIGITAL FRONTIER IS VAST AND FULL OF OPPORTUNITY, YET REQUIRES WISE AND RESPONSIBLE PARTICIPATION. JOIN THE ELITE WHO ARE SCALING THE INTELLIGENCE LAYER OF WEB3—THE FUTURE BELONGS TO THE GODS OF AI.
+          </p>
+        </div>
+      </div>
+
+      {/* FIRE AVATAR - BOTTOM RIGHT */}
+      <div className="fixed bottom-10 right-10 z-[40] w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-cyan-400/30 overflow-hidden shadow-2xl shadow-cyan-500/20 group cursor-pointer hover:scale-110 transition-all">
+         <img 
+           src="https://i.im.ge/2026/02/06/eWzWFr.FIRE-AVATAR.jpeg" 
+           alt="AI GOD" 
+           className="w-full h-full object-cover group-hover:scale-125 transition-all duration-700"
+           onError={(e) => {
+             (e.target as HTMLImageElement).src = AIGODS_LOGO_URL;
+           }}
+         />
+      </div>
+
+      {/* MODALS */}
       {isChallengeModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/95 backdrop-blur-3xl" onClick={() => setIsChallengeModalOpen(false)}></div>
-          <div className="relative w-full max-w-5xl max-h-[90vh] bg-[#080810] border border-yellow-500/30 rounded-[3rem] overflow-y-auto shadow-[0_0_150px_rgba(234,179,8,0.1)] scrollbar-hide">
-            <div className="p-8 md:p-14 space-y-12">
-              
-              {/* Modal Header */}
-              <div className="flex flex-col md:flex-row items-center gap-10 border-b border-white/5 pb-12">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-yellow-500/20 rounded-full blur-3xl animate-pulse"></div>
-                  <img src={AIGODS_LOGO_URL} className="w-32 h-32 md:w-48 md:h-48 rounded-full border-4 border-yellow-500/50 relative z-10 shadow-2xl" alt="AIGODS Logo" />
-                </div>
-                <div className="text-center md:text-left flex-1">
-                  <h2 className="text-4xl md:text-7xl font-black text-white italic tracking-tighter uppercase leading-none mb-4">REFERRAL <span className="text-yellow-500">CHALLENGE</span></h2>
-                  <p className="text-gray-400 font-bold text-sm md:text-lg max-w-xl leading-relaxed">
-                    The ultimate AI GODS architect battle. Climb the global leaderboard and unlock massive rewards.
-                  </p>
-                </div>
-                <button onClick={() => setIsChallengeModalOpen(false)} className="absolute top-8 right-8 p-3 bg-gray-900/60 rounded-full text-gray-400 hover:text-white transition-all">
-                  <X size={28} />
-                </button>
-              </div>
+          
+          <div className="aigods-bg-section relative w-full max-w-5xl max-h-[90vh] bg-[#080b16] border border-blue-500/30 rounded-[3.5rem] overflow-hidden flex flex-col shadow-[0_0_100px_rgba(30,58,138,0.5)]">
+              {/* PREMIUM BILLBOARD STYLING */}
+              <style>{`
+                .aigods-bg-section {
+                  position: relative;
+                  overflow: hidden;
+                }
 
-              {/* Action Buttons Row */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <button 
-                  onClick={() => { handleClaimAirdrop(); }}
-                  className="py-6 bg-[#16da64] text-black font-black rounded-2xl uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:scale-105 transition-all shadow-lg shadow-green-500/10"
-                >
-                  <Sparkles size={18} /> CLAIM FREE 100 AIGODS
-                </button>
-                <button 
-                  onClick={() => { setIsChallengeModalOpen(false); document.getElementById('calculator')?.scrollIntoView({behavior:'smooth'}); }}
-                  className="py-6 bg-cyan-500 text-black font-black rounded-2xl uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:scale-105 transition-all shadow-lg shadow-cyan-500/10"
-                >
-                  <CardIcon size={18} /> BUY PRESALE NOW
-                </button>
-                <button 
-                  onClick={() => { if(!connectedAddress) setIsWalletModalOpen(true); else copyToClipboard(`${window.location.origin}?ref=${connectedAddress}`); }}
-                  className="py-6 bg-white text-black font-black rounded-2xl uppercase tracking-widest text-xs flex items-center justify-center gap-3 hover:scale-105 transition-all shadow-lg shadow-white/10"
-                >
-                  <Share2 size={18} /> COPY REFERRAL LINK
-                </button>
-              </div>
+                .aigods-bg-section::before {
+                  content: "";
+                  position: absolute;
+                  inset: 0;
+                  background: url("${AIGODS_LOGO_URL}") center/contain no-repeat;
+                  opacity: 0.12;
+                  filter: brightness(0.6) contrast(1.2);
+                  z-index: 0;
+                }
 
-              {/* Leaderboard Table */}
-              <div className="bg-black/60 rounded-[2.5rem] border border-white/5 overflow-hidden">
-                <div className="p-8 border-b border-white/5 flex items-center justify-between">
-                  <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter flex items-center gap-3">
-                    <Trophy className="text-yellow-500" /> GLOBAL RANKINGS
-                  </h3>
-                  <div className="bg-yellow-500/10 text-yellow-500 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-yellow-500/20">
-                    UPDATED LIVE
+                .aigods-bg-section::after {
+                  content: "";
+                  position: absolute;
+                  inset: 0;
+                  background: radial-gradient(circle at center, rgba(255,215,0,0.12), rgba(0,0,0,0.85));
+                  z-index: 1;
+                }
+
+                .aigods-bg-section > * {
+                  position: relative;
+                  z-index: 2;
+                }
+              `}</style>
+
+              {/* PROFESSIONAL HEADER */}
+              <div className="p-8 md:p-12 border-b border-white/5 flex items-center justify-between bg-gradient-to-r from-[#1e3a8a]/40 to-black relative z-10">
+                <div className="flex items-center gap-6">
+                  <div className="w-16 h-16 bg-blue-600/20 rounded-2xl flex items-center justify-center border border-blue-500/30 shadow-[0_0_20px_rgba(59,130,246,0.3)]">
+                    <Trophy className="text-[#d4af37] animate-bounce" size={40} />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl md:text-5xl font-black text-[#d4af37] italic uppercase tracking-tighter">
+                      AIGODS Referral Reward Challenge
+                    </h2>
+                    <p className="text-[10px] md:text-xs font-bold text-blue-400 uppercase tracking-[0.4em] mt-2 italic">GLOBAL LEADERS OF THE INTELLIGENCE REVOLUTION</p>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={loadLeaderboard}
+                    className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center hover:bg-white/10 transition-all border border-white/10"
+                    title="Synchronize Data"
+                  >
+                    <RefreshCw size={24} className={`text-blue-400 ${isLeaderboardLoading ? 'animate-spin' : ''}`} />
+                  </button>
+                  <button onClick={() => setIsChallengeModalOpen(false)} className="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center hover:bg-red-500/20 transition-all border border-white/10">
+                    <X size={28} className="text-gray-400 hover:text-white"/>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-8 md:p-12 bg-[#050508]/60 relative z-10">
+                {/* FALLBACK/OFFLINE ERROR UI */}
+                {firebaseError && (
+                  <div className="mb-10 p-6 bg-red-500/10 border border-red-500/30 rounded-3xl flex items-center gap-5 text-red-500">
+                    <AlertCircle size={32} />
+                    <div className="flex flex-col">
+                      <span className="text-sm font-black uppercase tracking-widest">SYSTEM ALERT</span>
+                      <span className="text-[11px] font-bold uppercase tracking-widest opacity-80">{firebaseError}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* CHALLENGE INFO CARDS (PRIZES) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                   <div className="p-8 bg-[#12172b] border border-[#d4af37]/30 rounded-[2.5rem] flex flex-col items-center text-center group hover:bg-[#12172b]/80 hover:-translate-y-2 transition-all shadow-[0_0_25px_rgba(212,175,55,0.15)]">
+                      <div className="text-4xl mb-4">🥇</div>
+                      <span className="text-xl font-black text-white uppercase tracking-widest mb-1 italic">20,000 AIGODS</span>
+                      <span className="text-3xl font-black text-[#d4af37] italic">$70,000</span>
+                      <span className="text-[9px] font-bold text-gray-500 uppercase mt-2">COMMITTED CHAMPION REWARD</span>
+                   </div>
+                   <div className="p-8 bg-[#12172b] border border-[#d4af37]/30 rounded-[2.5rem] flex flex-col items-center text-center group hover:bg-[#12172b]/80 hover:-translate-y-2 transition-all shadow-[0_0_25px_rgba(212,175,55,0.15)]">
+                      <div className="text-4xl mb-4">🥈</div>
+                      <span className="text-xl font-black text-white uppercase tracking-widest mb-1 italic">15,000 AIGODS</span>
+                      <span className="text-3xl font-black text-[#d4af37] italic">$52,500</span>
+                      <span className="text-[9px] font-bold text-gray-500 uppercase mt-2">ELITE ARCHITECT REWARD</span>
+                   </div>
+                   <div className="p-8 bg-[#12172b] border border-[#d4af37]/30 rounded-[2.5rem] flex flex-col items-center text-center group hover:bg-[#12172b]/80 hover:-translate-y-2 transition-all shadow-[0_0_25px_rgba(212,175,55,0.15)]">
+                      <div className="text-4xl mb-4">🥉</div>
+                      <span className="text-xl font-black text-white uppercase tracking-widest mb-1 italic">10,000 AIGODS</span>
+                      <span className="text-3xl font-black text-[#d4af37] italic">$35,000</span>
+                      <span className="text-[9px] font-bold text-gray-500 uppercase mt-2">PRO VISIONARY REWARD</span>
+                   </div>
+                </div>
+
+                {/* USER DASHBOARD */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+                  <div className="bg-[#12172b] p-8 rounded-[2rem] border border-white/5 shadow-xl">
+                    <h4 className="text-[#d4af37] font-black uppercase text-sm tracking-widest mb-4 italic">Your Referral Dashboard</h4>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase">WALLET</span>
+                        <span className="text-xs font-mono text-cyan-400">{connectedAddress ? `${connectedAddress.slice(0,12)}...${connectedAddress.slice(-4)}` : 'Not connected'}</span>
+                      </div>
+                      <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase">TOTAL REFERRALS</span>
+                        <span className="text-2xl font-black text-white italic">{userReferrals}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase">COMMISSION (20%)</span>
+                        <span className="text-lg font-black text-[#16da64] italic">ACTIVE</span>
+                      </div>
+                      {!connectedAddress && (
+                        <button 
+                          onClick={() => setIsWalletModalOpen(true)}
+                          className="w-full mt-4 py-3 bg-cyan-400 text-black font-black rounded-xl uppercase tracking-widest text-[10px] hover:bg-cyan-300 transition-all flex items-center justify-center gap-2"
+                        >
+                          <Wallet2 size={14} /> Connect Wallet to Track
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-[#12172b] p-8 rounded-[2rem] border border-white/5 shadow-xl">
+                    <h4 className="text-[#d4af37] font-black uppercase text-sm tracking-widest mb-4 flex items-center gap-2 italic"><Zap size={16} /> Live Referral Feed</h4>
+                    <div className="h-28 overflow-y-auto space-y-3 scrollbar-hide pr-2">
+                      {liveFeedData.length > 0 ? liveFeedData.map((feed, idx) => (
+                        <div key={feed.id} className="flex items-center justify-between text-[11px] font-bold bg-black/40 p-3 rounded-xl border border-white/5 group animate-fade-in">
+                          <span className="text-gray-400 group-hover:text-cyan-400 transition-colors">{feed.wallet.slice(0,6)}...{feed.wallet.slice(-4)} referred</span>
+                          <span className="text-[#16da64] italic">COMMISSION EARNED</span>
+                        </div>
+                      )) : (
+                        <div className="h-full flex items-center justify-center">
+                          <p className="text-[9px] text-gray-600 uppercase tracking-widest italic animate-pulse">Monitoring Global Activity...</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
+                {/* PROFESSIONAL LEADERBOARD TABLE */}
+                <div className="bg-black/80 rounded-[3rem] overflow-hidden border border-white/5 shadow-2xl backdrop-blur-md">
+                  <table className="w-full text-left">
                     <thead>
-                      <tr className="border-b border-white/5 bg-white/5">
-                        <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">RANK</th>
-                        <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">WALLETS</th>
-                        <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">REFERRALS</th>
-                        <th className="px-8 py-6 text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] text-right">EST. REWARD</th>
+                      <tr className="border-b border-white/10 bg-[#d4af37]">
+                        <th className="p-8 text-[11px] font-black text-black uppercase tracking-[0.3em]">RANK</th>
+                        <th className="p-8 text-[11px] font-black text-black uppercase tracking-[0.3em]">WALLET</th>
+                        <th className="p-8 text-[11px] font-black text-black uppercase tracking-[0.3em]">REFERRALS</th>
+                        <th className="p-8 text-[11px] font-black text-black uppercase tracking-[0.3em]">PROGRESS</th>
+                        <th className="p-8 text-[11px] font-black text-black uppercase tracking-[0.3em] text-right">BADGE</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-white/5">
                       {leaderboardData.length > 0 ? leaderboardData.map((user, i) => {
-                        const rewards = [
-                          { tokens: 15000, usd: "$52,500" },
-                          { tokens: 10000, usd: "$35,000" },
-                          { tokens: 5000, usd: "$17,500" }
-                        ];
-                        const isTop3 = i < 3;
+                        const maxRefs = leaderboardData[0]?.referrals || 1;
+                        const progress = Math.min(((user.referrals || 0) / maxRefs) * 100, 100);
+                        
                         return (
-                          <tr key={user.address} className={`border-b border-white/5 hover:bg-white/5 transition-all ${isTop3 ? 'bg-yellow-500/5' : ''}`}>
-                            <td className="px-8 py-6 font-black text-xl italic text-white italic">
-                              {i === 0 ? <Crown size={24} className="text-yellow-500" /> : i + 1}
+                          <tr key={user.address} className={`hover:bg-white/5 transition-colors group ${i === 0 ? 'bg-[#1e2b1e]/60' : i === 1 ? 'bg-[#2b2620]/60' : i === 2 ? 'bg-[#2b2020]/60' : ''}`}>
+                            <td className="p-8">
+                              <span className={`text-2xl font-black italic ${i < 3 ? 'text-white' : 'text-gray-600'}`}>{i + 1}</span>
                             </td>
-                            <td className="px-8 py-6">
-                              <span className="font-mono text-cyan-400 font-bold">{user.address.slice(0, 8)}...{user.address.slice(-6)}</span>
+                            <td className="p-8">
+                              <span className="font-mono text-cyan-400 font-bold bg-cyan-950/40 px-3 py-1 rounded-lg group-hover:bg-cyan-900/60 transition-all">
+                                {user.address.slice(0, 6)}...{user.address.slice(-4)}
+                              </span>
                             </td>
-                            <td className="px-8 py-6 font-black text-white text-lg">{user.referrals || 0}</td>
-                            <td className="px-8 py-6 text-right">
-                              <span className={`text-xl font-black tracking-tighter ${isTop3 ? 'text-yellow-500' : 'text-gray-500'}`}>
-                                {isTop3 ? rewards[i].usd : "—"}
+                            <td className="p-8">
+                              <span className="text-2xl font-black text-white italic">{user.referrals || 0}</span>
+                            </td>
+                            <td className="p-8 min-w-[150px]">
+                              <div className="w-full bg-[#1f2338] h-2 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full bg-[#d4af37] transition-all duration-1000 ease-out"
+                                  style={{ width: `${progress}%` }}
+                                />
+                              </div>
+                            </td>
+                            <td className="p-8 text-right">
+                              <span className={`text-xs font-black uppercase tracking-widest italic ${i === 0 ? 'text-[#d4af37]' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-amber-600' : 'text-gray-600'}`}>
+                                {getBadge(i + 1)}
                               </span>
                             </td>
                           </tr>
                         );
-                      }) : (
-                        <tr><td colSpan={4} className="p-20 text-center text-gray-500 font-bold uppercase tracking-widest italic">Scanning global network for rankings...</td></tr>
+                      }) : !isLeaderboardLoading && (
+                        <tr>
+                          <td colSpan={5} className="p-32 text-center">
+                            <div className="flex flex-col items-center gap-6 opacity-30">
+                              <Sparkles size={64} className="text-gray-500 animate-pulse" />
+                              <p className="text-gray-500 font-black uppercase tracking-[0.5em] italic text-sm">SYNCHRONIZING WITH BLOCKCHAIN VAULT...</p>
+                            </div>
+                          </td>
+                        </tr>
                       )}
                     </tbody>
                   </table>
                 </div>
-              </div>
 
-              {/* Instructions Section */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div className="bg-[#0c0c16] rounded-[2.5rem] p-10 space-y-6 border border-white/5">
-                  <h4 className="text-xl font-black text-cyan-400 uppercase italic">HOW TO WIN THE CHALLENGE 🚀</h4>
-                  <ul className="space-y-4">
-                    {[
-                      'Run Google Ads campaigns to scale your reach.',
-                      'Promote using viral TikTok & YouTube shorts.',
-                      'Deploy links across Twitter, Telegram & Discord.',
-                      'Share on high-traffic crypto blogs & forums.',
-                      'Utilize referral automation tools for maximum impact.'
-                    ].map((step, idx) => (
-                      <li key={idx} className="flex items-start gap-3 text-xs font-bold text-gray-400 leading-relaxed uppercase tracking-wider">
-                        <CheckCircle2 size={16} className="text-cyan-500 shrink-0" /> {step}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="bg-gradient-to-br from-yellow-500/20 to-transparent rounded-[2.5rem] p-10 space-y-6 border border-yellow-500/20 relative overflow-hidden">
-                  <Trophy size={140} className="absolute -right-10 -bottom-10 text-yellow-500/10 rotate-12" />
-                  <h4 className="text-xl font-black text-yellow-500 uppercase italic relative z-10">PRIZE POOL BREAKDOWN</h4>
-                  <div className="space-y-5 relative z-10">
-                    {[
-                      { rank: '1ST PLACE', prize: '15,000 AIGODS', usd: '$52,500' },
-                      { rank: '2ND PLACE', prize: '10,000 AIGODS', usd: '$35,000' },
-                      { rank: '3RD PLACE', prize: '5,000 AIGODS', usd: '$17,500' }
-                    ].map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between border-b border-white/5 pb-3">
-                        <div>
-                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{item.rank}</p>
-                          <p className="text-sm font-black text-white uppercase italic">{item.prize}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xl font-black text-yellow-500 italic">{item.usd}</p>
-                        </div>
-                      </div>
-                    ))}
+                {/* PROMOTION TEXT SECTION */}
+                <div className="mt-16 bg-[#12172b] p-10 md:p-14 rounded-[3rem] border border-white/5 shadow-2xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:rotate-12 transition-all duration-700 pointer-events-none">
+                    <Globe size={180} />
+                  </div>
+                  <h5 className="text-[#d4af37] text-2xl md:text-3xl font-black italic uppercase tracking-tighter mb-8 italic">GLOBAL EXPANSION PROTOCOL</h5>
+                  
+                  <div className="space-y-6 text-[12px] md:text-sm text-gray-300 font-bold leading-relaxed uppercase tracking-widest">
+                    <p>
+                      The AIGODS ecosystem is built to create real global impact in the next generation of decentralized intelligence and digital finance.
+                    </p>
+                    <p>
+                      By referring others to AIGODS, you are not just sharing a project — you are helping expand a fast-growing global movement focused on innovation, opportunity, and long-term value creation.
+                    </p>
+                    <p>
+                      This referral challenge is designed to reward early supporters who believe in the future of advanced AI-powered blockchain ecosystems. Every new participant you introduce strengthens the network, increases awareness, and accelerates adoption worldwide.
+                    </p>
+                    <p>
+                      The crypto industry rewards those who act early and consistently. Many of today’s biggest success stories began with communities that promoted projects before the world recognized their potential.
+                    </p>
+                    
+                    <div className="py-6 space-y-3">
+                      <p className="text-white font-black italic underline decoration-[#d4af37]">When you refer AIGODS, you are:</p>
+                      <ul className="space-y-3 ml-4">
+                        <li className="flex items-center gap-3"><div className="w-1.5 h-1.5 bg-[#d4af37] rounded-full"></div> Expanding a global innovation community</li>
+                        <li className="flex items-center gap-3"><div className="w-1.5 h-1.5 bg-[#d4af37] rounded-full"></div> Helping more people access financial opportunity</li>
+                        <li className="flex items-center gap-3"><div className="w-1.5 h-1.5 bg-[#d4af37] rounded-full"></div> Positioning yourself as an leader in early adoption</li>
+                        <li className="flex items-center gap-3"><div className="w-1.5 h-1.5 bg-[#d4af37] rounded-full"></div> Building scalable income through referrals</li>
+                        <li className="flex items-center gap-3"><div className="w-1.5 h-1.5 bg-[#d4af37] rounded-full"></div> Contributing to a project focused on long-term stability and growth</li>
+                      </ul>
+                    </div>
+
+                    <p>
+                      The more people you reach, the stronger the ecosystem becomes. Your effort today can translate into significant rewards tomorrow.
+                    </p>
+                    <p>
+                      Use every available platform — social media, communities, content marketing, and advertising — to spread awareness. Consistent promotion multiplies your results.
+                    </p>
+                    <p className="text-[#16da64] font-black italic bg-[#16da64]/5 p-4 border-l-4 border-[#16da64] rounded-r-xl">
+                      This is more than a competition. It is a coordinated global expansion effort driven by early believers.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-10">
+                    <div className="p-4 bg-black/40 rounded-2xl border border-white/5 text-[9px] font-black uppercase text-center text-cyan-400">Google Ads</div>
+                    <div className="p-4 bg-black/40 rounded-2xl border border-white/5 text-[9px] font-black uppercase text-center text-cyan-400">TikTok Viral</div>
+                    <div className="p-4 bg-black/40 rounded-2xl border border-white/5 text-[9px] font-black uppercase text-center text-cyan-400">YouTube Marketing</div>
+                    <div className="p-4 bg-black/40 rounded-2xl border border-white/5 text-[9px] font-black uppercase text-center text-cyan-400">X Communities</div>
+                  </div>
+                  
+                  <div className="mt-12 text-center space-y-3">
+                    <p className="text-[#d4af37] font-black italic uppercase tracking-[0.4em] text-base md:text-xl">STAY COMMITTED • REFER STRATEGICALLY • BUILD MOMENTUM</p>
+                    <p className="text-white/40 font-black uppercase tracking-[0.2em] text-[10px] md:text-xs">The future belongs to those who participate early and execute relentlessly.</p>
                   </div>
                 </div>
-              </div>
 
-              <div className="text-center pt-8 border-t border-white/5">
-                <p className="text-[11px] font-black text-gray-500 uppercase tracking-[0.4em] italic">THIS IS A MAJOR OPPORTUNITY. PUT IN MAXIMUM EFFORT AND DOMINATE THE WORLD. 👑</p>
+                {isLeaderboardLoading && (
+                  <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-30">
+                    <div className="flex flex-col items-center gap-6">
+                      <div className="w-20 h-20 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(212,175,55,0.4)]"></div>
+                      <p className="text-[#d4af37] font-black uppercase tracking-[0.4em] text-sm animate-pulse">QUERYING AI CORE INTELLIGENCE...</p>
+                    </div>
+                  </div>
+                )}
               </div>
+          </div>
+        </div>
+      )}
 
-            </div>
+      {isWalletModalOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/98 backdrop-blur-2xl" onClick={() => setIsWalletModalOpen(false)}></div>
+          <div className="relative w-full max-w-lg bg-[#151522] border border-gray-800 rounded-[2.5rem] p-10 md:p-14 shadow-[0_0_100px_rgba(34,211,238,0.15)] overflow-hidden">
+             {/* BACKGROUND ACCENTS */}
+             <div className="absolute -top-20 -right-20 w-60 h-60 bg-cyan-500/10 blur-[100px] animate-pulse"></div>
+             
+             <div className="logo mb-10 text-center">
+                <img src={AIGODS_LOGO_URL} alt="AIGODS" className="mx-auto w-32 h-32 rounded-full border-4 border-cyan-400 shadow-2xl" />
+             </div>
+
+             <div className="flex items-center justify-between mb-8 relative z-10">
+               <div>
+                 <h3 className="text-2xl font-black uppercase tracking-tighter text-white italic leading-none">🔗 Connect Wallet</h3>
+                 <p className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.2em] mt-3 italic">SELECT SECURE GATEWAY</p>
+               </div>
+               <button onClick={() => setIsWalletModalOpen(false)} className="w-12 h-12 flex items-center justify-center bg-white/5 rounded-2xl hover:bg-white/10 transition-all">
+                 <X size={24} className="text-gray-400 hover:text-white" />
+               </button>
+             </div>
+             
+             <div className="grid grid-cols-2 gap-4 relative z-10">
+               {[
+                 { name: 'MetaMask', icon: 'https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg', symbol: '🦊' },
+                 { name: 'WalletConnect', icon: 'https://raw.githubusercontent.com/WalletConnect/walletconnect-assets/master/Logo/Blue%20(Default)/Logo.svg', symbol: '📱' },
+                 { name: 'Phantom', icon: 'https://cryptologos.cc/logos/phantom-phantom-logo.png', symbol: '👻' },
+                 { name: 'Trust Wallet', icon: 'https://trustwallet.com/assets/images/media/assets/trust_platform.svg', symbol: '🛡️' }
+               ].map(w => (
+                 <button 
+                   key={w.name} 
+                   onClick={() => connectWallet(w.name)} 
+                   className="group p-6 bg-[#1c1c2b] border border-white/5 rounded-2xl flex flex-col items-center justify-center hover:bg-[#25253a] hover:border-cyan-500/30 transition-all text-center shadow-lg"
+                 >
+                    <div className="text-4xl mb-3">{w.symbol}</div>
+                    <span className="font-black text-white uppercase tracking-widest text-xs block leading-none">{w.name}</span>
+                 </button>
+               ))}
+             </div>
+             
+             <div className="mt-8 text-center text-gray-500 font-bold text-xs uppercase tracking-widest">
+                <p id="walletAddress" className="opacity-70">Wallet: {connectedAddress || 'Not connected'}</p>
+             </div>
+
+             {connectedAddress && (
+               <div className="mt-6 p-4 bg-[#0f0f1a] rounded-xl border border-white/5 text-[10px] font-bold text-cyan-400 break-all text-center uppercase tracking-widest">
+                  Your Referral Link:<br/>
+                  <span className="text-white mt-1 block">{window.location.origin}?ref={connectedAddress}</span>
+               </div>
+             )}
+             
+             <p className="mt-10 text-[9px] text-gray-600 font-black uppercase text-center tracking-widest opacity-40">
+               By connecting, you agree to the enterprise terms of protocol service.
+             </p>
           </div>
         </div>
       )}
@@ -441,628 +1011,279 @@ const App: React.FC = () => {
       {isWhitepaperOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/98 backdrop-blur-3xl" onClick={() => setIsWhitepaperOpen(false)}></div>
-          <div className="relative w-full max-w-4xl max-h-[95vh] bg-[#050508] border border-gray-800/60 rounded-[3rem] overflow-y-auto shadow-[0_0_100px_rgba(34,211,238,0.15)] animate-in zoom-in-95 duration-300 scrollbar-hide">
-            <div className="p-8 md:p-12 space-y-10">
-              {/* Note Header */}
-              <div className="bg-[#1a1705] border border-yellow-500/30 p-4 rounded-xl text-center">
-                <p className="text-yellow-500 font-black text-[9px] md:text-[11px] uppercase tracking-widest leading-relaxed">
-                  NOTE: THIS IS THE PRE-SALE WHITE PAPER. THE MAIN WHITE PAPER WILL BE ARRIVING SOON AFTER LAUNCHING.
-                </p>
-              </div>
+          
+          <div className="relative w-full max-w-[1200px] h-full max-h-[95vh] bg-[#050508] border border-white/10 rounded-[2.5rem] overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.9)] flex flex-col font-inter text-[#eaf2ff]">
+             
+             {/* Note Banner */}
+             <div className="w-full bg-[#1c1c0a] py-2 px-4 border-b border-yellow-500/20 text-center">
+               <span className="text-[9px] md:text-xs font-black text-yellow-500 uppercase tracking-widest">
+                 NOTE: THIS IS THE PRE-SALE WHITE PAPER. THE MAIN WHITE PAPER WILL BE ARRIVING SOON AFTER LAUNCHING.
+               </span>
+             </div>
 
-              {/* White Paper Modal Header */}
-              <div className="flex items-center justify-between border-b border-gray-800/40 pb-10">
-                <div className="flex items-center gap-6">
-                  <div className="relative">
-                    <div className="absolute inset-0 bg-yellow-500/20 rounded-full blur-xl"></div>
-                    <img src={AIGODS_LOGO_URL} className="w-20 h-20 md:w-28 md:h-28 rounded-full border-2 border-yellow-500/40 relative z-10" alt="Logo" />
-                  </div>
-                  <div>
-                    <h2 className="text-3xl md:text-5xl font-black text-white tracking-tighter uppercase italic leading-none">AI GODS (AIGODS)</h2>
-                    <p className="text-cyan-400 font-black tracking-[0.3em] text-[10px] uppercase mt-2">PRE-SALE & AIRDROP WHITEPAPER</p>
-                  </div>
-                </div>
-                <button onClick={() => setIsWhitepaperOpen(false)} className="p-3 bg-gray-900/60 rounded-full text-gray-400 hover:text-white transition-all border border-white/5">
-                  <X size={24} />
-                </button>
-              </div>
+             <div className="flex-1 overflow-y-auto scrollbar-hide">
+               <div className="max-w-[1000px] mx-auto px-6 py-12">
+                 
+                 {/* Top Navigation Row */}
+                 <div className="flex items-center justify-between mb-16">
+                    <div className="flex items-center gap-4">
+                      <div className="w-20 h-20 md:w-28 md:h-28 rounded-full border-2 border-white/10 overflow-hidden shadow-2xl shadow-yellow-500/10 animate-dim-light">
+                        <img src={AIGODS_LOGO_URL} alt="AIGODS" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex flex-col">
+                        <h2 className="text-2xl md:text-4xl font-black italic tracking-tighter text-white leading-none">
+                          AI GODS (AIGODS)
+                        </h2>
+                        <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest mt-2">
+                          PRE-SALE & AIRDROP WHITEPAPER
+                        </span>
+                      </div>
+                    </div>
+                    <button onClick={() => setIsWhitepaperOpen(false)} className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center hover:bg-white/10 transition-all border border-white/10">
+                      <X size={24} className="text-gray-400 hover:text-white" />
+                    </button>
+                 </div>
 
-              {/* Scrollable Modal Content */}
-              <div className="space-y-16 py-4">
-                
-                {/* Hero section */}
-                <section className="text-center space-y-10">
-                   <h3 className="text-3xl md:text-5xl font-black text-white uppercase italic tracking-tighter leading-tight">
-                     THE FUTURE IS NOW – BECOME A GOD <br/> IN CRYPTO 👑
-                   </h3>
-                   <div className="space-y-4">
-                     <div className="w-full h-[350px] md:h-[550px] rounded-[3rem] overflow-hidden relative shadow-2xl bg-black/40">
-                        <img src={AIGODS_LOGO_URL} className="w-full h-full object-cover" alt="Whitepaper Hero Banner" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#050508] via-transparent to-transparent opacity-60"></div>
-                     </div>
-                     <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest italic">A MAJESTIC BEARDED TITAN, HALF CYBERNETIC HUMAN, HALF BLAZING AIGODS SYMBOL</p>
+                 {/* Hero Headline */}
+                 <div className="text-center mb-16">
+                    <h1 className="text-4xl md:text-7xl font-black italic uppercase tracking-tighter text-white leading-tight">
+                      THE FUTURE IS NOW — BECOME A<br/>GOD<br/>IN CRYPTO 👑
+                    </h1>
+                 </div>
+
+                 {/* Hero Image Block - AIGODS Logo requested to show here */}
+                 <div className="flex flex-col items-center mb-24">
+                   <div className="w-full rounded-[3rem] overflow-hidden border border-white/10 shadow-[0_0_80px_rgba(0,255,213,0.15)] mb-6">
+                      <img 
+                        src={AIGODS_LOGO_URL} 
+                        alt="AIGODS Logo" 
+                        className="w-full h-auto object-cover"
+                      />
                    </div>
-                </section>
+                   <p className="text-[9px] md:text-xs font-black text-gray-500 uppercase tracking-widest italic opacity-60 text-center">
+                     AI GODS OFFICIAL LOGO — THE INTELLIGENCE REVOLUTION
+                   </p>
+                 </div>
 
-                {/* 1. Introduction section */}
-                <section className="space-y-8 p-10 bg-[#0a0a14] rounded-[3rem] border border-white/5">
-                  <h4 className="text-2xl font-black text-cyan-400 uppercase italic flex items-center gap-4">
-                    <span className="bg-cyan-500 text-black px-3 py-1 rounded-lg not-italic text-lg">1</span>
-                    INTRODUCTION – WELCOME TO AI GODS
-                  </h4>
-                  <div className="space-y-6 text-gray-200 leading-relaxed">
-                    <p className="text-base md:text-xl font-bold">
-                      AI GODS is not just another token. It is a revolutionary decentralized voice intelligence reward system—empowering real-world AI applications with voice-powered intelligence, smart automation, and community-driven innovation.
-                    </p>
-                    <div className="space-y-2">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Built for the AI era through alignment with industry Titans & Innovators:</p>
-                      <p className="text-xs font-black text-white">BlackRock • Tesla • OpenAI • Microsoft • Nvidia • Google • Apple • X (Twitter) • and more.</p>
+                 {/* Section 1: Introduction */}
+                 <div className="bg-[#0c0c14] border border-white/5 rounded-[3.5rem] p-8 md:p-16 mb-24 shadow-2xl">
+                    <div className="flex items-center gap-4 mb-10">
+                      <div className="w-10 h-10 bg-cyan-400 rounded-lg flex items-center justify-center text-black font-black text-xl">1</div>
+                      <h3 className="text-xl md:text-3xl font-black italic tracking-tighter text-cyan-400 uppercase">
+                        INTRODUCTION — WELCOME TO AI GODS
+                      </h3>
                     </div>
 
-                    {/* Quote Box */}
-                    <div className="bg-[#0c1a25] border-l-4 border-cyan-500 p-8 rounded-2xl relative overflow-hidden">
-                       <Globe size={120} className="absolute -right-10 -bottom-10 text-cyan-500/10" />
-                       <p className="text-lg md:text-2xl font-black text-white italic leading-tight relative z-10">
-                         "With over $10 billion in committed ecosystem capital, AI GODS is positioned to dominate the intersection of artificial intelligence and cryptocurrency."
-                       </p>
-                    </div>
-
-                    <div className="space-y-2">
-                       <p className="text-[#a1882d] font-black italic text-xs uppercase">AI GODS is here to create massive awareness in the world of crypto. Stay up, get ready to be rich, and retire early.</p>
-                       <p className="text-[#a1882d] font-black italic text-xs uppercase">The future is NOW – AIGODS COIN OFFICIAL IS THE KING! 👑</p>
-                    </div>
-                  </div>
-                </section>
-
-                {/* 2 & 3: Token Details & Presale Stages */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* Section 2: Token Details */}
-                  <section className="p-10 bg-[#0a0a14] rounded-[3rem] border border-white/5 space-y-8">
-                    <h4 className="text-2xl font-black text-[#ff00ff] uppercase italic flex items-center gap-4">
-                      <span className="bg-[#ff00ff] text-black px-3 py-1 rounded-lg not-italic text-lg">2</span>
-                      TOKEN DETAILS
-                    </h4>
-                    <div className="space-y-4">
-                      {[
-                        ['TOKEN NAME', 'AI GODS'],
-                        ['SYMBOL', 'AIGODS'],
-                        ['TOTAL SUPPLY', '700,000,000'],
-                        ['DECIMALS', '18'],
-                        ['BLOCKCHAIN', 'BNB, Polygon, Solana']
-                      ].map(([label, val]) => (
-                        <div key={label} className="flex items-center justify-between border-b border-white/5 pb-2">
-                           <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{label}</span>
-                           <span className="text-sm font-black text-white uppercase">{val}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="space-y-4 pt-4">
-                       <span className="text-[9px] font-black text-[#ff00ff] uppercase tracking-widest italic">ALLOCATION</span>
-                       <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
-                          <span className="text-xs font-black text-white"><span className="text-[#ff00ff]">80%</span> – Pre-Sale (Community)</span>
-                       </div>
-                       <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
-                          <span className="text-xs font-black text-white"><span className="text-[#ff00ff]">20%</span> – Team & Ecosystem</span>
-                       </div>
-                       <p className="text-[8px] font-black text-gray-600 uppercase tracking-widest text-center italic">PURE COMMUNITY-FIRST DESIGN.</p>
-                    </div>
-                  </section>
-
-                  {/* Section 3: Presale Stages */}
-                  <section className="p-10 bg-[#0a0a14] rounded-[3rem] border border-white/5 space-y-8">
-                    <h4 className="text-2xl font-black text-yellow-500 uppercase italic flex items-center gap-4">
-                      <span className="bg-yellow-500 text-black px-3 py-1 rounded-lg not-italic text-lg">3</span>
-                      PRE-SALE STAGES
-                    </h4>
-                    <div className="space-y-6">
-                       <div className="bg-cyan-900/20 border border-cyan-500/20 rounded-2xl p-6 relative overflow-hidden">
-                          <div className="absolute top-0 right-0 bg-cyan-500 text-black text-[7px] font-black px-2 py-1 uppercase italic">STAGE 1 - EARLY BIRD</div>
-                          <div className="text-xl font-black text-white">$0.20 per AIGODS</div>
-                          <div className="text-[9px] font-bold text-cyan-400 mt-1 uppercase tracking-widest italic">17.5x POTENTIAL UPSIDE</div>
-                       </div>
-                       <div className="bg-purple-900/20 border border-purple-500/20 rounded-2xl p-6 relative overflow-hidden">
-                          <div className="absolute top-0 right-0 bg-purple-500 text-black text-[7px] font-black px-2 py-1 uppercase italic">STAGE 2 - ACCUMULATION</div>
-                          <div className="text-xl font-black text-white">$0.80 per AIGODS</div>
-                          <div className="text-[9px] font-bold text-purple-400 mt-1 uppercase tracking-widest italic">4.375x POTENTIAL UPSIDE</div>
-                       </div>
-                       <div className="bg-gray-800/40 border border-white/5 rounded-2xl p-6 text-center">
-                          <div className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1 italic">TARGET LISTING PRICE</div>
-                          <div className="text-4xl font-black text-white">$3.50</div>
-                       </div>
-                    </div>
-                  </section>
-                </div>
-
-                {/* Section 4 & 5 Card Layout */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                   {/* 4. Easy Purchase */}
-                   <section className="p-10 bg-[#0a0a14] rounded-[3rem] border border-white/5 space-y-6">
-                      <h4 className="text-2xl font-black text-cyan-400 uppercase italic leading-none">4. EASY PURCHASE OPTIONS</h4>
-                      <p className="text-[11px] text-gray-400 font-semibold leading-relaxed">
-                        Buy with BNB, Polygon, or Solana. No crypto? No problem. Purchase instantly using <span className="text-white">Debit or Credit Card</span>. Tokens reflect automatically.
+                    <div className="space-y-10">
+                      <p className="text-lg md:text-2xl text-gray-300 font-bold leading-relaxed">
+                        AI GODS is not just another token. It is a revolutionary decentralized voice intelligence reward system—empowering real-world AI applications with voice-powered intelligence, smart automation, and community-driven innovation.
                       </p>
-                      <button onClick={() => {setIsWhitepaperOpen(false); handleNetworkClick('DEBIT/CREDIT');}} className="w-full py-5 bg-cyan-500 text-black font-black rounded-xl uppercase tracking-[0.2em] text-xs shadow-lg shadow-cyan-500/20 hover:scale-105 transition-all">
-                        BUY AIGODS NOW
-                      </button>
-                   </section>
+                      
+                      <div className="space-y-4">
+                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">BUILT FOR THE AI ERA THROUGH ALIGNMENT WITH INDUSTRY TITANS & INNOVATORS:</span>
+                        <p className="text-sm md:text-lg font-black text-white italic tracking-tight">
+                          BlackRock • Tesla • OpenAI • Microsoft • Nvidia • Google • Apple • X (Twitter) • and more.
+                        </p>
+                      </div>
+
+                      <div className="relative p-10 md:p-14 bg-gradient-to-br from-[#0c0c14] to-[#080b16] rounded-[2.5rem] border-l-8 border-cyan-400 shadow-xl overflow-hidden">
+                         <div className="absolute right-0 bottom-0 p-8 opacity-5">
+                            <Globe size={180} />
+                         </div>
+                         <p className="text-2xl md:text-4xl font-black italic text-white leading-tight relative z-10">
+                           "With over $10 billion in committed ecosystem capital, AI GODS is positioned to dominate the intersection of artificial intelligence and cryptocurrency."
+                         </p>
+                      </div>
+
+                      <div className="pt-8 border-t border-white/5 space-y-4">
+                        <p className="text-xs md:text-sm font-black text-orange-500 uppercase tracking-widest italic">
+                          AI GODS IS HERE to CREATE MASSIVE AWARENESS IN THE WORLD OF CRYPTO. STAY UP, GET READY TO BE RICH, AND RETIRE EARLY.
+                        </p>
+                        <p className="text-xs md:text-sm font-black text-yellow-500 uppercase tracking-widest italic">
+                          THE FUTURE IS NOW — AIGODS COIN OFFICIAL IS THE KING! 👑
+                        </p>
+                      </div>
+                    </div>
+                 </div>
+
+                 {/* Token Details & Pre-sale Stages Side-by-Side */}
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-24">
+                   {/* Left: Token Details (2) */}
+                   <div className="flex flex-col">
+                      <div className="flex items-center gap-3 mb-8">
+                        <div className="w-8 h-8 bg-cyan-400 rounded flex items-center justify-center text-black font-black">2</div>
+                        <h4 className="text-xl font-black italic text-white uppercase">TOKEN DETAILS</h4>
+                      </div>
+                      
+                      <div className="space-y-6">
+                        <div className="flex justify-between items-center"><span className="text-[11px] font-black text-gray-500 uppercase tracking-widest">TOKEN NAME</span><span className="font-bold text-white uppercase text-right">AI GODS COIN</span></div>
+                        <div className="flex justify-between items-center"><span className="text-[11px] font-black text-gray-500 uppercase tracking-widest">SYMBOL</span><span className="font-bold text-white uppercase">AIGODS</span></div>
+                        <div className="flex justify-between items-center"><span className="text-[11px] font-black text-gray-500 uppercase tracking-widest">TOTAL SUPPLY</span><span className="font-bold text-white uppercase">700,000,000</span></div>
+                        <div className="flex justify-between items-center"><span className="text-[11px] font-black text-gray-500 uppercase tracking-widest">DECIMALS</span><span className="font-bold text-white uppercase">18</span></div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] font-black text-gray-500 uppercase tracking-widest">BLOCKCHAIN</span>
+                          <div className="text-right">
+                             <span className="font-bold text-white uppercase block">BNB</span>
+                             <span className="text-[8px] font-bold text-cyan-400 italic block mt-1 uppercase">Other blockchains coming soon after launch</span>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-10">
+                          <span className="text-[11px] font-black text-pink-500 uppercase tracking-widest italic">ALLOCATION</span>
+                          <div className="mt-4 space-y-4">
+                            <div className="bg-[#12121a] p-4 rounded-xl border border-white/5 flex items-center gap-2">
+                               <span className="text-pink-500 font-black">80%</span>
+                               <span className="text-xs font-bold text-gray-300">— Pre-Sale (Community)</span>
+                            </div>
+                            <div className="bg-[#12121a] p-4 rounded-xl border border-white/5 flex items-center gap-2">
+                               <span className="text-pink-500 font-black">20%</span>
+                               <span className="text-xs font-bold text-gray-300">— Team & Ecosystem</span>
+                            </div>
+                          </div>
+                          <p className="text-[9px] font-black text-gray-700 uppercase tracking-[0.3em] mt-4 text-center">PURE COMMUNITY-FIRST DESIGN.</p>
+                        </div>
+                      </div>
+                   </div>
+
+                   {/* Right: Pre-sale Stages (3) */}
+                   <div className="flex flex-col">
+                      <div className="flex items-center gap-3 mb-8">
+                        <div className="w-8 h-8 bg-cyan-400 rounded flex items-center justify-center text-black font-black">3</div>
+                        <h4 className="text-xl font-black italic text-white uppercase">PRE-SALE STAGES</h4>
+                      </div>
+                      
+                      <div className="space-y-6">
+                        <div className="bg-[#12121a] p-6 rounded-2xl border border-cyan-400/20 shadow-lg relative overflow-hidden group">
+                           <div className="absolute top-0 right-0 bg-cyan-500 px-3 py-1 text-[8px] font-black text-black">STAGE 1 - EARLY BIRD</div>
+                           <h5 className="text-2xl font-black text-white">$0.20 per AIGODS</h5>
+                           <p className="text-[10px] font-bold text-cyan-400 mt-1 uppercase">17.5X POTENTIAL UPSIDE</p>
+                        </div>
+
+                        <div className="bg-[#12121a] p-6 rounded-2xl border border-pink-500/20 shadow-lg relative overflow-hidden group">
+                           <div className="absolute top-0 right-0 bg-pink-500 px-3 py-1 text-[8px] font-black text-black">STAGE 2 - ACCUMULATION</div>
+                           <h5 className="text-2xl font-black text-white">$0.80 per AIGODS</h5>
+                           <p className="text-[10px] font-bold text-pink-500 mt-1 uppercase">4.375X POTENTIAL UPSIDE</p>
+                        </div>
+
+                        <div className="bg-[#0c0c0f] p-8 rounded-2xl border border-white/10 text-center flex flex-col items-center justify-center">
+                           <span className="text-[9px] font-black text-gray-500 uppercase tracking-[0.3em] mb-2 italic">TARGET LISTING PRICE</span>
+                           <span className="text-5xl font-black text-white animate-dim-light-blue">$3.50</span>
+                        </div>
+                      </div>
+                   </div>
+                 </div>
+
+                 {/* Section 4 & 5 Row */}
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-24">
+                   {/* 4. Easy Purchase */}
+                   <div className="bg-[#0c0c14] border border-white/5 rounded-[3rem] p-10 flex flex-col items-start transition-all hover:shadow-[0_0_30px_rgba(34,211,238,0.1)] group">
+                     <div className="flex items-center gap-3 mb-6">
+                        <h4 className="text-xl font-black italic text-cyan-400 uppercase tracking-tighter">4. EASY PURCHASE OPTIONS</h4>
+                     </div>
+                     <p className="text-[11px] font-bold text-gray-400 leading-relaxed uppercase tracking-wider mb-8">
+                       Purchases can be made using <span className="text-white font-black italic">BNB only for now</span>. Polygon and Solana options will be available <span className="text-cyan-400 font-black">coming soon</span>. Purchase instantly using Debit or Credit Card. Tokens reflect automatically.
+                     </p>
+                     <button 
+                       onClick={handleWhitepaperBuy}
+                       className="w-full bg-cyan-400 text-black font-black py-5 rounded-xl uppercase tracking-widest text-xs hover:scale-[1.02] transition-all shadow-[0_0_20px_rgba(34,211,238,0.3)]"
+                     >
+                       BUY AIGODS NOW
+                     </button>
+                   </div>
 
                    {/* 5. Free Airdrop */}
-                   <section className="p-10 bg-[#0a0a14] rounded-[3rem] border border-white/5 space-y-6">
-                      <h4 className="text-2xl font-black text-cyan-400 uppercase italic leading-none">5. FREE AIRDROP</h4>
-                      <p className="text-[11px] text-gray-400 font-semibold leading-relaxed">
-                        100 AIGODS FREE per eligible wallet. One claim per wallet. At listing price, this is <span className="text-white font-bold italic">$350 potential value</span>.
-                      </p>
-                      <button onClick={() => {setIsWhitepaperOpen(false); handleClaimAirdrop();}} className="w-full py-5 bg-[#16da64] text-black font-black rounded-xl uppercase tracking-[0.2em] text-xs shadow-lg shadow-green-500/20 hover:scale-105 transition-all">
-                        CLAIM FREE 100 AIGODS
-                      </button>
-                   </section>
-                </div>
+                   <div className="bg-[#0c0c14] border border-white/5 rounded-[3rem] p-10 flex flex-col items-start transition-all hover:shadow-[0_0_30px_rgba(34,211,238,0.1)] group">
+                     <div className="flex items-center gap-3 mb-6">
+                        <h4 className="text-xl font-black italic text-cyan-400 uppercase tracking-tighter">5. FREE AIRDROP</h4>
+                     </div>
+                     <p className="text-[11px] font-bold text-gray-400 leading-relaxed uppercase tracking-wider mb-8">
+                       100 AIGODS FREE per eligible wallet. One claim per wallet. At listing price, this is <span className="text-white font-black italic">$350 potential value</span>.
+                     </p>
+                     <button 
+                       onClick={handleClaimAirdrop}
+                       className="w-full bg-[#16da64] text-black font-black py-5 rounded-xl uppercase tracking-widest text-xs hover:scale-[1.02] transition-all shadow-[0_0_20px_rgba(22,218,100,0.3)]"
+                     >
+                       CLAIM FREE 100 AIGODS
+                     </button>
+                   </div>
+                 </div>
 
-                {/* Section 6: Referral System Full Width */}
-                <section className="p-12 bg-gradient-to-br from-purple-900/40 to-black rounded-[3rem] border border-[#ff00ff]/20 text-center space-y-8 shadow-2xl">
-                   <h4 className="text-3xl md:text-5xl font-black text-[#ff00ff] uppercase italic tracking-tighter leading-none">6. POWERFUL REFERRAL SYSTEM</h4>
-                   <p className="text-[11px] md:text-base text-gray-400 font-bold max-w-xl mx-auto leading-relaxed">
-                     Promote AI GODS and earn <span className="text-green-500 font-black">50% INSTANT REWARDS</span> of every purchase made through your unique link.
+                 {/* 6. Powerful Referral System */}
+                 <div className="bg-gradient-to-br from-[#1a0c24] to-[#0c0c14] border border-pink-500/20 rounded-[3.5rem] p-12 md:p-20 mb-24 text-center relative overflow-hidden shadow-2xl">
+                   <div className="absolute inset-0 bg-pink-500/5 mix-blend-screen opacity-20"></div>
+                   <h2 className="text-4xl md:text-6xl font-black italic tracking-tighter text-pink-500 uppercase mb-8 relative z-10">
+                     6. POWERFUL REFERRAL SYSTEM
+                   </h2>
+                   <p className="text-lg md:text-xl text-gray-300 font-bold mb-12 max-w-2xl mx-auto uppercase tracking-wide relative z-10 leading-relaxed">
+                     Promote AI GODS and earn <span className="text-[#16da64] font-black italic">20% INSTANT REWARDS</span> of every purchase made through your unique link.
                    </p>
-                   <button onClick={() => {setIsWhitepaperOpen(false); if(!connectedAddress) setIsWalletModalOpen(true);}} className="bg-white text-black font-black px-14 py-5 rounded-2xl uppercase tracking-[0.2em] text-xs shadow-xl hover:bg-gray-200 transition-all mx-auto block">
-                      GET REFERRAL LINK
+                   <button 
+                     onClick={handleWhitepaperReferral}
+                     className="bg-white text-black font-black px-16 py-6 rounded-2xl transition-all hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.2)] uppercase tracking-widest text-sm relative z-10"
+                   >
+                     GET REFERRAL LINK
                    </button>
-                </section>
+                 </div>
 
-                {/* Section 7: Why AI Gods */}
-                <section className="space-y-12">
-                   <div className="text-center space-y-4">
-                      <h4 className="text-4xl md:text-5xl font-black text-white uppercase italic tracking-tighter">7. WHY AI GODS?</h4>
-                      <p className="text-[11px] md:text-base text-gray-400 font-bold max-w-xl mx-auto leading-relaxed">
-                        AI GODS combines decentralized voice AI, powerful incentives, and massive global momentum. This isn’t just hype—it’s a movement.
-                      </p>
+                 {/* 7. Why AI GODS? */}
+                 <div className="mb-24 text-center">
+                    <h2 className="text-4xl md:text-6xl font-black italic text-white uppercase tracking-tighter mb-6 italic">7. WHY AI GODS?</h2>
+                    <p className="text-[12px] md:text-sm text-gray-400 font-bold uppercase tracking-widest max-w-2xl mx-auto mb-16 leading-relaxed">
+                      AI GODS combines decentralized voice AI, powerful incentives, and massive global momentum. This isn't just hype—it's a movement.
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                       <div className="bg-[#0c0c14] border border-white/5 p-10 rounded-[2.5rem] flex flex-col items-center">
+                          <h5 className="text-cyan-400 font-black italic uppercase text-xs tracking-widest mb-4">MAXIMUM UPSIDE</h5>
+                          <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">EARLY ACCESS TO LOW PRE-SALE PRICING</p>
+                       </div>
+                       <div className="bg-[#0c0c14] border border-white/5 p-10 rounded-[2.5rem] flex flex-col items-center">
+                          <h5 className="text-cyan-400 font-black italic uppercase text-xs tracking-widest mb-4">COMMUNITY DOMINANCE</h5>
+                          <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">POWERED BY THE ARCHITECTURE OF WEB3</p>
+                       </div>
+                       <div className="bg-[#0c0c14] border border-white/5 p-10 rounded-[2.5rem] flex flex-col items-center">
+                          <h5 className="text-cyan-400 font-black italic uppercase text-xs tracking-widest mb-4">FINANCIAL FREEDOM</h5>
+                          <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">BUILT FOR THE TITANS & VISIONARIES</p>
+                       </div>
+                    </div>
+                 </div>
+
+                 {/* Final Message */}
+                 <div className="text-center py-24 border-t border-white/5">
+                   <h2 className="text-5xl md:text-[7rem] font-black italic uppercase tracking-tighter bg-gradient-to-r from-cyan-400 via-blue-500 to-pink-500 bg-clip-text text-transparent leading-none">
+                     AI GODS – THE FUTURE<br/>IS NOW
+                   </h2>
+                   <div className="mt-20">
+                     <button 
+                       onClick={() => setIsWhitepaperOpen(false)} 
+                       className="bg-black/60 border border-white/10 text-gray-600 hover:text-white px-24 py-5 rounded-full font-black uppercase text-[11px] tracking-[0.6em] transition-all backdrop-blur-md"
+                     >
+                       CLOSE WHITE PAPER
+                     </button>
                    </div>
-                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      {[
-                        { title: 'Maximum Upside', desc: 'Early access to low pre-sale pricing', color: 'text-cyan-400' },
-                        { title: 'Community Dominance', desc: 'Powered by the architecture of Web3', color: 'text-cyan-400' },
-                        { title: 'Financial Freedom', desc: 'Built for the Titans & Visionaries', color: 'text-cyan-400' }
-                      ].map((card, i) => (
-                        <div key={i} className="bg-[#0a0a14] border border-white/5 p-10 rounded-[2.5rem] text-center space-y-4 shadow-xl">
-                           <span className={`text-sm md:text-base font-black italic uppercase ${card.color}`}>{card.title}</span>
-                           <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest leading-relaxed">{card.desc}</p>
-                        </div>
-                      ))}
-                   </div>
-                </section>
+                 </div>
 
-                {/* FinalTagline */}
-                <section className="text-center space-y-12 pt-16">
-                   <h4 className="text-4xl md:text-7xl font-black text-white uppercase tracking-tighter leading-tight">
-                     AI GODS – The Future is <br/> Here. <br/>
-                     <span className="italic text-[#a1882d]">Be Rich. Retire Early. Rule <br/> the Crypto World. 👑</span>
-                   </h4>
-                   <button onClick={() => setIsWhitepaperOpen(false)} className="bg-gray-900 text-white font-black px-12 py-5 rounded-2xl uppercase tracking-[0.3em] text-[10px] border border-white/10 hover:bg-white/5 transition-all shadow-xl mx-auto block">
-                      CLOSE WHITE PAPER
-                   </button>
-                </section>
-
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Banner */}
-      <div className="w-full max-w-6xl px-4 mb-10">
-        <div className="bg-gradient-to-r from-[#ff00ff] to-[#00ffff] text-black text-xl md:text-4xl font-black py-4 md:py-6 rounded-full tracking-tighter uppercase shadow-[0_0_40_rgba(255,0,255,0.3)] text-center animate-pulse">
-          LAUNCHING SOON – 10$ BILLION+ BACKED
-        </div>
-      </div>
-
-      {/* Main Title Section */}
-      <div className="text-center mb-8">
-        <h1 className="text-7xl md:text-9xl font-black text-gradient-magenta tracking-tighter leading-none uppercase">AIGOD'S</h1>
-        <p className="text-cyan-400 font-black tracking-[0.1em] text-[11px] md:text-sm uppercase mt-4 leading-tight italic text-center">
-          THE FUTURE IS NOW – BECOME A GOD <br/> IN CRYPTO 👑
-        </p>
-      </div>
-
-      {/* Description */}
-      <div className="max-w-xl text-center px-6 mb-12 space-y-4">
-        <p className="text-sm md:text-lg font-bold">
-          <span className="text-cyan-400">AIGODS</span> is the world's first decentralized superintelligence token, powering AI agents and autonomous economies.
-        </p>
-        <p className="text-[10px] md:text-xs text-gray-600 font-bold uppercase leading-relaxed tracking-wider">
-          Backed /partnered by <span className="text-white">BlackRock, Tesla, Twitter/X, OpenAI, NVIDIA, Google, Apple, Microsoft</span> and others with over <span className="text-white">$10 billion</span> in committed capital.
-        </p>
-      </div>
-
-      {/* Video */}
-      <div className="w-full max-w-3xl aspect-video bg-black/40 rounded-[2rem] border border-gray-800 shadow-[0_0_50px_rgba(147,51,234,0.15)] overflow-hidden relative mb-20">
-        <iframe 
-          className="w-full h-full"
-          src="https://www.youtube.com/embed/dQw4w9WgXcQ" 
-          title="AIGODS Official Showcase"
-          frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-        ></iframe>
-      </div>
-
-      {/* Presale Details Header */}
-      <div className="text-center mb-10">
-        <h2 className="text-5xl md:text-7xl font-black text-cyan-400 tracking-tighter uppercase">
-          PRESALE DETAILS
-        </h2>
-      </div>
-
-      {/* Pricing Cards */}
-      <div className="w-full max-w-2xl px-4 space-y-6 mb-10">
-        <div className="bg-gray-900/40 border border-cyan-500/20 rounded-[2rem] p-8 text-center backdrop-blur-sm relative">
-          <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest mb-2 block">STAGE 1 PRICE</span>
-          <span className="text-6xl font-black text-white">$0.20</span>
-          <div className="mt-2 flex items-center justify-center gap-2 text-green-500 text-[10px] font-bold">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-            ACTIVE NOW
-          </div>
-        </div>
-
-        <div className="bg-gray-900/40 border border-white/5 rounded-[2rem] p-8 text-center opacity-60">
-          <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest mb-2 block">STAGE 2 PRICE</span>
-          <span className="text-6xl font-black text-white">$0.80</span>
-          <div className="mt-2 text-gray-500 text-[10px] font-bold uppercase tracking-widest">NEXT PHASE</div>
-        </div>
-
-        <div className="bg-black/60 border-2 border-cyan-400 rounded-[2rem] p-10 text-center shadow-[0_0_60px_rgba(34,211,238,0.2)]">
-          <span className="text-[10px] font-black uppercase text-cyan-400 tracking-widest mb-2 block italic">FINAL LAUNCH PRICE</span>
-          <span className="text-8xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]">$3.50</span>
-          <div className="mt-3 text-cyan-400 text-[10px] font-black uppercase tracking-[0.4em]">Q4 2026</div>
-        </div>
-      </div>
-
-      {/* Multipliers */}
-      <div className="w-full max-w-2xl grid grid-cols-2 gap-4 px-4 mb-16 text-center">
-        <div className="p-4 border-r border-gray-800">
-          <div className="text-5xl font-black text-white">17.5X</div>
-          <div className="text-[10px] font-black text-green-500 mt-2 uppercase tracking-widest">→ Stage 1 Returns</div>
-        </div>
-        <div className="p-4">
-          <div className="text-5xl font-black text-white">4.375X</div>
-          <div className="text-[10px] font-black text-green-500 mt-2 uppercase tracking-widest">Stage 2 Returns ←</div>
-        </div>
-      </div>
-
-      {/* 🔥 UPGRADED 3D ROTATING COIN */}
-      <div className="mb-40 relative flex flex-col items-center w-full">
-        <h2 className="text-3xl font-black text-white uppercase tracking-[0.2em] mb-12">AIGODS Wallet System</h2>
-        <div className="coin-container">
-          <div className="coin-3d">
-            <div className="coin-edge"></div>
-            <div className="coin-face coin-face-front">
-              <img src={AIGODS_LOGO_URL} alt="AIGODS Coin Front" />
-            </div>
-            <div className="coin-face coin-face-back">
-              <img src={AIGODS_LOGO_URL} alt="AIGODS Coin Back" />
-            </div>
-          </div>
-        </div>
-        <div className="mt-20 text-center">
-          <button 
-            onClick={() => connectedAddress ? null : setIsWalletModalOpen(true)}
-            className="bg-cyan-500 text-black font-black px-12 py-5 rounded-2xl uppercase tracking-[0.2em] hover:scale-105 transition-all shadow-[0_0_40px_rgba(6,182,212,0.3)] text-lg"
-          >
-            {connectedAddress ? 'Wallet Connected' : 'Connect Wallet'}
-          </button>
-          <p className="mt-6 text-sm font-black text-gray-500 uppercase tracking-widest">
-            {connectedAddress ? `Connected: ${connectedAddress}` : 'Not Connected'}
-          </p>
-        </div>
-      </div>
-
-      {/* Calculator */}
-      <div id="calculator" className="w-full max-w-2xl bg-[#0a0a14] border border-gray-800 rounded-[3rem] p-10 shadow-2xl relative mb-20">
-        <div className="text-center mb-10">
-          <span className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.4em] mb-4 block">TOKEN CALCULATOR</span>
-        </div>
-        <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">INVESTMENT AMOUNT</label>
-              <input 
-                type="text" 
-                value={calcAmount}
-                onChange={(e) => setCalcAmount(e.target.value)}
-                className="w-full bg-black/40 border border-gray-800 rounded-2xl p-5 text-white font-bold text-lg focus:outline-none focus:border-cyan-500/50"
-              />
-            </div>
-            <div className="space-y-3">
-              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">ASSET</label>
-              <select 
-                value={calcChain}
-                onChange={(e) => setCalcChain(e.target.value)}
-                className="w-full bg-black/40 border border-gray-800 rounded-2xl p-5 text-white font-bold text-lg focus:outline-none appearance-none cursor-pointer"
-              >
-                <option>BNB</option>
-                <option>SOL</option>
-                <option>MATIC</option>
-              </select>
-            </div>
-          </div>
-          <div className="space-y-3">
-            <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">PRESALE PHASE</label>
-            <select 
-              value={calcStage}
-              onChange={(e) => setCalcStage(e.target.value)}
-              className="w-full bg-black/40 border border-gray-800 rounded-2xl p-5 text-white font-bold text-lg focus:outline-none cursor-pointer"
-            >
-              <option>Stage 1 ($0.20)</option>
-              <option>Stage 2 ($0.80)</option>
-            </select>
-          </div>
-          <div className="bg-black/60 p-10 rounded-3xl border border-gray-800/60 text-center">
-            <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4">EQUIVALENT AIGODS TOKENS</div>
-            <div className="text-7xl font-black text-cyan-400 leading-none">{calculatedTokens.toLocaleString()}</div>
-            <div className="mt-6 text-green-500 font-bold text-sm tracking-wide">Potential Listing Value: ${potentialProfit} ({potentialX}X)</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Network Icons Row */}
-      <div className="w-full max-w-2xl px-4 grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-        <button 
-          onClick={() => handleNetworkClick('BNB CHAIN')} 
-          className={`py-4 px-2 rounded-2xl text-[10px] font-black transition-all uppercase tracking-widest ${activeNetwork === 'BNB CHAIN' ? 'bg-[#f3ba2f] text-black shadow-[0_0_20px_rgba(243,186,47,0.4)]' : 'bg-gray-900/60 border border-white/5'}`}
-        >
-          BNB CHAIN
-        </button>
-        <button 
-          onClick={() => handleNetworkClick('POLYGON')} 
-          className={`py-4 px-2 rounded-2xl text-[10px] font-black transition-all uppercase tracking-widest ${activeNetwork === 'POLYGON' ? 'bg-[#8247e5] text-white shadow-[0_0_20px_rgba(130,71,229,0.4)]' : 'bg-gray-900/60 border border-white/5'}`}
-        >
-          POLYGON
-        </button>
-        <button 
-          onClick={() => handleNetworkClick('SOLANA')} 
-          className={`py-4 px-2 rounded-2xl text-[10px] font-black transition-all uppercase tracking-widest ${activeNetwork === 'SOLANA' ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'bg-gray-900/60 border border-white/5'}`}
-        >
-          SOLANA
-        </button>
-        <div className="relative">
-          <button 
-            onClick={() => handleNetworkClick('DEBIT/CREDIT')} 
-            className={`w-full py-4 px-2 rounded-2xl text-[10px] font-black transition-all uppercase tracking-widest flex items-center justify-center gap-2 ${activeNetwork === 'DEBIT/CREDIT' ? 'bg-[#3b82f6] text-white shadow-[0_0_20px_rgba(59,130,246,0.4)]' : 'bg-gray-900/60 border border-white/5'}`}
-          >
-            <CardIcon size={14} /> DEBIT/CREDIT
-          </button>
-          <div className="absolute -top-3 -right-2 bg-blue-500 text-[7px] font-black text-white px-2 py-0.5 rounded-full uppercase italic animate-bounce shadow-lg">
-            FASTEST OPTION
-          </div>
-        </div>
-      </div>
-
-      {/* Card Checkout Banner */}
-      {activeNetwork === 'DEBIT/CREDIT' && (
-        <div className="w-full max-w-2xl bg-blue-900/20 border border-blue-500/40 rounded-[2.5rem] p-10 mb-10 flex items-start gap-8 backdrop-blur-sm relative overflow-hidden group">
-          <div className="absolute inset-0 bg-blue-500/5 group-hover:bg-blue-500/10 transition-colors pointer-events-none"></div>
-          <div className="bg-blue-600 p-5 rounded-3xl shadow-[0_0_30px_rgba(37,99,235,0.6)]">
-            <Zap size={32} fill="white" className="text-white" />
-          </div>
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-               <h4 className="text-xl font-black text-white uppercase tracking-tighter">Instant Card Checkout</h4>
-               <div className="h-0.5 w-12 bg-blue-500/40"></div>
-            </div>
-            <p className="text-[11px] text-gray-300 font-semibold leading-relaxed max-w-md">
-              No crypto? No problem. Securely purchase AIGODS tokens using your <span className="text-white">Visa, Mastercard, Apple Pay,</span> or <span className="text-white">Google Pay</span>. Our 1-click fiat bridge handles everything, including instant delivery to your wallet.
-            </p>
-            <div className="grid grid-cols-2 gap-y-3 gap-x-6">
-              <div className="flex items-center gap-2 text-[9px] font-black text-cyan-400">
-                <CheckCircle2 size={12} /> INSTANT TOKEN DELIVERY
-              </div>
-              <div className="flex items-center gap-2 text-[9px] font-black text-cyan-400">
-                <CheckCircle2 size={12} /> FULLY SECURED & AUDITED
-              </div>
-              <div className="flex items-center gap-2 text-[9px] font-black text-cyan-400">
-                <CheckCircle2 size={12} /> 30-SEC VERIFICATION
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Buy Button Row */}
-      <div className="w-full max-w-2xl px-4 grid grid-cols-1 md:grid-cols-12 gap-4 mb-14">
-        <div className="md:col-span-8">
-           <input 
-             type="text" 
-             placeholder="Amount (BNB/SOL/MATIC/USDT)" 
-             className="w-full h-24 bg-gray-900/60 border border-gray-800 rounded-[2rem] px-8 text-xl font-bold text-white focus:outline-none focus:border-cyan-500/40"
-             value={buyInput}
-             onChange={(e) => setBuyInput(e.target.value)}
-           />
-        </div>
-        <div className="md:col-span-4">
-          <button className="w-full h-24 bg-gradient-to-br from-[#ff00ff] to-[#00ffff] rounded-[2rem] text-black font-black text-lg leading-tight uppercase hover:scale-105 transition-all shadow-[0_0_30px_rgba(255,0,255,0.3)]">
-            BUY <br/> AIGODS <br/> NOW
-          </button>
-        </div>
-      </div>
-
-      {/* 🔥 NEW SOCIAL TASKS BOX BEFORE CLAIM */}
-      <div className="w-full max-w-2xl px-4 mb-8">
-        <div className="bg-[#0a0a14] border border-gray-800 rounded-[2.5rem] p-8 text-center">
-          <h3 className="text-xl font-black text-white uppercase tracking-widest mb-6">Complete Tasks Before Claiming</h3>
-          <div className="grid grid-cols-1 gap-4 text-left max-w-xs mx-auto">
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <input 
-                type="checkbox" 
-                checked={taskTwitter} 
-                onChange={(e) => setTaskTwitter(e.target.checked)}
-                className="w-5 h-5 bg-black border border-gray-700 rounded checked:bg-cyan-500 transition-all"
-              />
-              <span className="text-sm font-black text-gray-400 group-hover:text-white transition-all uppercase tracking-widest">Follow Twitter</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <input 
-                type="checkbox" 
-                checked={taskTelegram} 
-                onChange={(e) => setTaskTelegram(e.target.checked)}
-                className="w-5 h-5 bg-black border border-gray-700 rounded checked:bg-cyan-500 transition-all"
-              />
-              <span className="text-sm font-black text-gray-400 group-hover:text-white transition-all uppercase tracking-widest">Join Telegram</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <input 
-                type="checkbox" 
-                checked={taskYoutube} 
-                onChange={(e) => setTaskYoutube(e.target.checked)}
-                className="w-5 h-5 bg-black border border-gray-700 rounded checked:bg-cyan-500 transition-all"
-              />
-              <span className="text-sm font-black text-gray-400 group-hover:text-white transition-all uppercase tracking-widest">Subscribe YouTube</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      {/* Claim Button */}
-      <div className="w-full max-w-2xl px-4 mb-20">
-        <button 
-          onClick={handleClaimAirdrop}
-          className="w-full py-10 rounded-[2.5rem] bg-[#16da64] text-black font-black text-3xl md:text-4xl uppercase tracking-tighter hover:scale-105 transition-all shadow-[0_0_50px_rgba(22,218,100,0.5)]"
-        >
-          CLAIM 100 AIGODS FREE
-        </button>
-      </div>
-
-      {/* Architect Referral Section */}
-      <div className="w-full max-w-2xl bg-[#0a0a14] border border-gray-800/60 rounded-[3rem] p-12 mb-20 relative overflow-hidden text-center shadow-2xl">
-         <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent pointer-events-none"></div>
-         <h3 className="text-5xl md:text-6xl font-black italic text-gradient-magenta tracking-tighter uppercase leading-none mb-6">
-           BECOME AN AIGODS ARCHITECT
-         </h3>
-         <div className="space-y-4 mb-10">
-            <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Viral growth is the engine of our revolution.</span>
-            <p className="text-[11px] text-gray-400 font-medium leading-relaxed max-w-md mx-auto">
-              Referrals are the <span className="text-white font-bold">fastest way</span> to promote AIGODS. By sharing, you don’t just support the project — you earn <span className="text-green-500 font-bold">20% instant rewards</span> from any total investment made through your referral link.
-            </p>
-         </div>
-         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-            <div className="md:col-span-8 bg-black/60 border border-gray-800 rounded-2xl p-4 flex items-center justify-between text-gray-600 text-[10px] font-bold overflow-hidden">
-               <span className="truncate pr-2">{connectedAddress ? `${window.location.origin}?ref=${connectedAddress}` : "Connect wallet to generate referral link"}</span>
-               <Lock size={12} className="opacity-40 shrink-0" />
-            </div>
-            <div className="md:col-span-4">
-              <button 
-                onClick={() => connectedAddress && copyToClipboard(`${window.location.origin}?ref=${connectedAddress}`)}
-                className="w-full bg-white text-black font-black py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-gray-200 transition-all text-sm uppercase"
-              >
-                <Copy size={16} /> Copy Link
-              </button>
-            </div>
-         </div>
-         <div className="mt-4">
-            <span className="text-[8px] font-black text-purple-400 tracking-widest uppercase italic">MUST CONNECT WALLET TO UNLOCK REFERRAL REWARDS</span>
-         </div>
-      </div>
-
-      {/* Logo Grid */}
-      <div className="w-full max-w-5xl px-4 flex flex-col items-center">
-        <LogoGrid />
-      </div>
-
-      {/* Certik Audit Banner */}
-      <div className="mt-20 w-full max-w-2xl px-4">
-        <div className="bg-black border border-green-500/30 rounded-[2.5rem] p-12 text-center relative overflow-hidden group">
-           <div className="absolute inset-0 bg-green-500/5 group-hover:bg-green-500/10 transition-colors"></div>
-           <div className="flex items-center justify-center gap-3 mb-6">
-              <div className="bg-green-500/20 p-2 rounded-lg"><ShieldCheck size={28} className="text-green-500" /></div>
-              <h4 className="text-2xl font-black text-white uppercase tracking-tighter">AUDITED BY CERTIK</h4>
-           </div>
-           <p className="text-[11px] text-gray-400 font-medium leading-relaxed max-sm mx-auto mb-8">
-             The AIGODS smart contract has successfully passed comprehensive security audits by CertiK, ensuring maximum safety for all investors.
-           </p>
-           <button className="bg-green-950/40 border border-green-500/30 text-green-500 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-green-500 hover:text-black transition-all flex items-center gap-2 mx-auto">
-             VIEW AUDIT REPORT <ExternalLink size={12} />
-           </button>
-        </div>
-      </div>
-
-      <div className="w-full h-px bg-gray-900 my-24"></div>
-
-      {/* Footer Socials */}
-      <div className="w-full max-w-5xl px-4 grid grid-cols-1 md:grid-cols-2 gap-20 mb-20 text-center md:text-left">
-         <div className="space-y-8">
-            <h5 className="text-cyan-400 text-xl font-black italic uppercase tracking-tighter">AIGODS OFFICIAL</h5>
-            <div className="flex items-center justify-center md:justify-start gap-8">
-               <a href="https://x.com/AIGODSCOIN" target="_blank" rel="noopener noreferrer" title="Twitter/X">
-                  <Twitter size={32} className="text-[#1DA1F2] hover:scale-110 transition-all cursor-pointer" />
-               </a>
-               <a href="https://t.me/AIGODSCOINOFFICIAL" target="_blank" rel="noopener noreferrer" title="Telegram Channel">
-                  <Send size={32} className="text-[#26A5E4] hover:scale-110 transition-all cursor-pointer" />
-               </a>
-               <a href="https://t.me/AIGODSCOIN" target="_blank" rel="noopener noreferrer" title="Telegram Chat">
-                  <MessageSquare size={32} className="text-[#26A5E4] hover:scale-110 transition-all cursor-pointer" />
-               </a>
-               <a href="https://www.youtube.com/@AIGODSCOINOFFICIAL" target="_blank" rel="noopener noreferrer" title="YouTube">
-                  <Youtube size={32} className="text-[#FF0000] hover:scale-110 transition-all cursor-pointer" />
-               </a>
-            </div>
-            <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Join the fastest growing decentralized AI community.</p>
-         </div>
-         <div className="space-y-8">
-            <h5 className="text-[#ff00ff] text-xl font-black italic uppercase tracking-tighter">INFLUENCER HUB</h5>
-            <div className="flex items-center justify-center md:justify-start gap-8">
-               <a href="https://x.com/BlackRock" target="_blank" rel="noopener noreferrer" title="BlackRock Twitter">
-                  <Twitter size={32} className="text-[#1DA1F2] hover:scale-110 transition-all cursor-pointer" />
-               </a>
-               <a href="https://x.com/elonmusk" target="_blank" rel="noopener noreferrer" title="Elon Musk X">
-                  <div className="text-white hover:scale-110 transition-all font-black text-3xl cursor-pointer">X</div>
-               </a>
-               <a href="https://www.blackrock.com/corporate" target="_blank" rel="noopener noreferrer" title="BlackRock Website">
-                  <Globe size={32} className="text-white hover:scale-110 transition-all cursor-pointer" />
-               </a>
-            </div>
-            <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Bridging the gap between titans and the future.</p>
-         </div>
-      </div>
-
-      {/* Legal Footer */}
-      <div className="w-full max-w-5xl px-4 text-center space-y-8 pb-12">
-        <h6 className="text-gray-500 font-black text-[11px] tracking-[0.4em] uppercase">© 2026 AI GODS – THE INTELLIGENCE LAYER OF WEB3</h6>
-        <p className="text-[9px] text-gray-600 font-bold uppercase leading-relaxed tracking-wider">
-          AIGODS STANDS AT THE ABSOLUTE VANGUARD OF THE DECENTRALIZED INTELLIGENCE MOVEMENT, PIONEERING A MULTI-BILLION DOLLAR ECOSYSTEM BACKED BY THE WORLD'S MOST INNOVATIVE GIANTS. AS WE BUILD THIS UNPARALLELED LEGACY, WE REMIND OUR VISIONARIES THAT THE DIGITAL FRONTIER IS VAST AND FULL OF OPPORTUNITY, YET REQUIRES WISE AND RESPONSIBLE PARTICIPATION. JOIN THE ELITE WHO ARE SCALING THE INTELLIGENCE LAYER OF WEB3—THE FUTURE BELONGS TO THE GODS OF AI.
-        </p>
-      </div>
-      
-      {/* IMPROVED MULTI-WALLET MODAL */}
-      {isWalletModalOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => setIsWalletModalOpen(false)}></div>
-          <div className="relative w-full max-w-sm bg-[#0a0a0f] border border-gray-800 rounded-[2.5rem] p-8 shadow-2xl">
-             <div className="flex items-center justify-between mb-8">
-               <h3 className="text-xl font-black uppercase tracking-widest">Connect Wallet</h3>
-               <button onClick={() => setIsWalletModalOpen(false)} className="text-gray-500 hover:text-white transition-colors">
-                 <X size={20} />
-               </button>
+               </div>
              </div>
-             <div className="grid gap-3">
-               {[
-                 { name: 'MetaMask', icon: '🦊' },
-                 { name: 'Phantom', icon: '👻' },
-                 { name: 'Trust Wallet', icon: '🛡️' },
-                 { name: 'WalletConnect', icon: '📱' },
-                 { name: 'Coinbase Wallet', icon: '🔵' },
-                 { name: 'SafePal', icon: '🔒' }
-               ].map(w => (
-                 <button 
-                  key={w.name} 
-                  onClick={() => connectWallet(w.name)} 
-                  className="p-5 bg-gray-900/60 border border-white/5 rounded-xl font-black text-left hover:bg-blue-600 hover:text-white transition-all text-xs flex items-center justify-between group"
-                 >
-                   <span>{w.name}</span>
-                   <span className="text-xl group-hover:scale-125 transition-transform">{w.icon}</span>
-                 </button>
-               ))}
-             </div>
-             <div className="mt-8 text-center">
-               <p className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">By connecting, you agree to the Terms of Service.</p>
-             </div>
+
+             <style>{`
+               @keyframes moveBG {
+                 0% { transform: translate(0, 0); }
+                 50% { transform: translate(-10%, -10%); }
+                 100% { transform: translate(0, 0); }
+               }
+               @keyframes dimmingLightBlue {
+                 0%, 100% { opacity: 1; filter: brightness(1.3) drop-shadow(0 0 10px rgba(0, 163, 255, 0.4)); transform: scale(1); }
+                 50% { opacity: 0.7; filter: brightness(0.8) drop-shadow(0 0 20px rgba(0, 163, 255, 0.8)); transform: scale(0.98); }
+               }
+               @keyframes dimmingBlue {
+                 0%, 100% { opacity: 1; color: #ffffff; text-shadow: 0 0 5px rgba(34, 211, 238, 0.5); }
+                 50% { opacity: 0.6; color: #22d3ee; text-shadow: 0 0 25px rgba(34, 211, 238, 0.9); }
+               }
+               .animate-dim-light-blue { animation: dimmingLightBlue 3s ease-in-out infinite; }
+               .animate-moveBG { animation: moveBG 20s linear infinite; }
+               .panel { position: relative; overflow: hidden; }
+             `}</style>
           </div>
         </div>
       )}
