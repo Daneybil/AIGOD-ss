@@ -1,5 +1,5 @@
 
-export const AIGODS_LOGO_URL = 'https://i.im.ge/2026/02/04/eIsYkh.100661.jpeg';
+export const AIGODS_LOGO_URL = 'https://i.im.ge/2026/02/06/eWzWFr.FIRE-AVATAR.jpeg';
 
 export const SYSTEM_INSTRUCTION = `
     You are the AIGODS Intelligent AI Assistant. You are a god-level AI support system.
@@ -24,7 +24,7 @@ export const SYSTEM_INSTRUCTION = `
 `;
 
 export const LOGO_DATA = [
-  { name: 'AI', url: 'https://i.im.ge/2026/02/04/eIsYkh.100661.jpeg' },
+  { name: 'AI', url: 'https://i.im.ge/2026/02/06/eWzWFr.FIRE-AVATAR.jpeg' },
   { name: 'BL', url: 'https://upload.wikimedia.org/wikipedia/commons/b/b7/BlackRock_wordmark.svg' },
   { name: 'Tesla', url: 'https://upload.wikimedia.org/wikipedia/commons/b/bd/Tesla_Motors.svg' },
   { name: 'OpenAI', url: 'https://upload.wikimedia.org/wikipedia/commons/4/4d/OpenAI_Logo.svg' },

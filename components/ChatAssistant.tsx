@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   X, 
@@ -13,7 +12,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
-import { SYSTEM_INSTRUCTION } from '../constants';
+import { SYSTEM_INSTRUCTION } from '../constants.ts';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -58,7 +57,6 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
     setSelectedImage(null);
 
     try {
-      // Create new GoogleGenAI instance directly using process.env.API_KEY
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const parts: any[] = [{ text: `${SYSTEM_INSTRUCTION}\n\nUser Query: ${inputText}` }];
       
@@ -85,7 +83,6 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
 
   const startVoiceCall = async () => {
     setIsInCall(true);
-    // Create new GoogleGenAI instance right before making an API call
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
@@ -98,7 +95,6 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
         callbacks: {
           onopen: () => console.log('Live session opened'),
           onmessage: async (message: LiveServerMessage) => {
-            // Handle model interruption signal
             const interrupted = message.serverContent?.interrupted;
             if (interrupted) {
               for (const source of sourcesRef.current.values()) {
@@ -150,7 +146,6 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
     setIsInCall(false);
   };
 
-  // Manual base64 decoding implementation as required
   const decode = (base64: string) => {
     const binaryString = atob(base64);
     const bytes = new Uint8Array(binaryString.length);
@@ -158,7 +153,6 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
     return bytes;
   };
 
-  // Manual raw PCM audio decoding as required for Live API streams
   const decodeAudioData = async (data: Uint8Array, ctx: AudioContext, sampleRate: number, numChannels: number) => {
     const dataInt16 = new Int16Array(data.buffer);
     const buffer = ctx.createBuffer(numChannels, dataInt16.length / numChannels, sampleRate);

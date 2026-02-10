@@ -1,11 +1,9 @@
-
 import React from 'react';
-import { AIGODS_LOGO_URL } from '../constants';
+import { AIGODS_LOGO_URL } from '../constants.ts';
 
 const ParticleBackground: React.FC = () => {
   return (
     <div className="fixed inset-0 -z-20 overflow-hidden pointer-events-none bg-[#0b0b0f]">
-      {/* Billboard Logo Background Style */}
       <div 
         className="absolute inset-0 bg-center bg-no-repeat opacity-30"
         style={{ 
@@ -15,13 +13,9 @@ const ParticleBackground: React.FC = () => {
         }}
       />
       
-      {/* Gradient Overlay for the Billboard Effect */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#0b0b0f]/90 via-[#0b0b0f]/80 to-[#0b0b0f]/95" />
-      
-      {/* Subtly Animated Ambient Glow */}
       <div className="absolute inset-0 animate-pulse-slow bg-cyan-500/5 mix-blend-screen" />
 
-      {/* Floating AIGODS Logos Animation - Kept for depth but reduced opacity */}
       <div className="absolute inset-0 overflow-hidden [perspective:1500px] z-10">
         {[...Array(12)].map((_, i) => (
           <div 

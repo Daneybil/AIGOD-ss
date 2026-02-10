@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { LOGO_DATA } from '../constants';
+import { LOGO_DATA } from '../constants.ts';
 
 const LogoGrid: React.FC = () => {
   return (

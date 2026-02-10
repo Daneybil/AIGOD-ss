@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AIGODS • The Future of Artificial Intelligence</title>
     <meta name="description" content="AIGODS - Decentralized Superintelligence Token. Presale: $0.20 → Listing: $3.50 (17.5x). Backed by BlackRock, Tesla, OpenAI & $10B+."/>
     <link rel="icon" href="https://i.im.ge/2026/02/04/eIsYkh.100661.jpeg" type="image/png">
@@ -13,12 +12,18 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@400;700&family=Roboto:wght@400;500;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
+      html, body {
+        overflow-x: hidden;
+        width: 100%;
+        scroll-behavior: smooth;
+        position: relative;
+      }
       body {
         font-family: 'Inter', sans-serif;
         background-color: #000000;
         color: white;
         margin: 0;
-        overflow-x: hidden;
+        -webkit-text-size-adjust: 100%;
       }
       .text-gradient-magenta {
         background: linear-gradient(90deg, #00ffff, #ff00ff, #ffffff);
@@ -71,11 +76,17 @@
         100% { filter: brightness(1) contrast(1.2); }
       }
 
-      /* NEW 3D COIN CLASSES */
+      /* DIMMING EFFECTS */
+      @keyframes dimming-light-blue {
+        0%, 100% { opacity: 0.7; box-shadow: 0 0 10px rgba(0, 255, 255, 0.3); }
+        50% { opacity: 1; box-shadow: 0 0 25px rgba(0, 255, 255, 0.8); }
+      }
+
+      /* RESPONSIVE 3D COIN */
       .coin-container {
         perspective: 1500px;
-        width: 320px;
-        height: 320px;
+        width: min(320px, 80vw);
+        height: min(320px, 80vw);
         margin: 0 auto;
       }
 
@@ -97,7 +108,7 @@
         height: 100%;
         border-radius: 50%;
         backface-visibility: hidden;
-        border: 12px solid #a1882d; /* Metallic gold edge */
+        border: clamp(4px, 1.5vw, 12px) solid #a1882d;
         background: #000;
         display: flex;
         align-items: center;
@@ -114,14 +125,13 @@
       }
 
       .coin-face-front {
-        transform: translateZ(12px);
+        transform: translateZ(clamp(4px, 1.5vw, 12px));
       }
 
       .coin-face-back {
-        transform: rotateY(180deg) translateZ(12px);
+        transform: rotateY(180deg) translateZ(clamp(4px, 1.5vw, 12px));
       }
 
-      /* Coin edge simulation */
       .coin-edge {
         position: absolute;
         width: 100%;
@@ -135,41 +145,70 @@
       .animate-float { animation: float ease-in-out infinite; }
       .animate-slow-zoom { animation: slow-zoom 30s ease-in-out infinite; }
       .animate-pulse-slow { animation: pulse-slow 5s ease-in-out infinite; }
+      .animate-dim-light-blue { animation: dimming-light-blue 3s ease-in-out infinite; }
 
       .scrollbar-hide::-webkit-scrollbar { display: none; }
       .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
-      /* Whitepaper specific animations */
-      @keyframes rotateLogo {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+      .aigods-bg-section { position: relative; overflow: hidden; }
+      .aigods-bg-section::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at center, rgba(0, 180, 255, 0.05), rgba(0, 0, 0, 0.98));
+        z-index: 1;
+        pointer-events: none;
       }
-      @keyframes floatSimple {
-        0%,100% { transform: translateY(0); }
-        50% { transform: translateY(-20px); }
+      .aigods-bg-section > * {
+        position: relative;
+        z-index: 2;
       }
-      .fade-in-wp {
-        opacity: 0;
-        transform: translateY(20px);
-        transition: all 1s ease-out;
-      }
-      .fade-in-wp.visible {
-        opacity: 1;
-        transform: translateY(0);
+
+      /* CLEAN MOBILE ADJUSTMENTS */
+      @media only screen and (max-width: 800px) {
+        * {
+          max-width: 100%;
+          box-sizing: border-box;
+        }
+        
+        .container, section, div, main, footer {
+          width: 100%;
+          padding-left: 12px;
+          padding-right: 12px;
+        }
+
+        /* Fixed the giant header issue */
+        .top-nav-fixed {
+          position: sticky !important;
+          top: 0;
+          left: 0;
+          right: 0;
+          z-index: 100;
+          background: rgba(0, 0, 0, 0.85) !important;
+          backdrop-filter: blur(10px);
+          padding-top: 10px !important;
+          padding-bottom: 10px !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Ensure interactive elements are easy to touch */
+        button {
+          min-height: 44px;
+        }
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://esm.sh/react@^19.2.4",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "@google/genai": "https://esm.sh/@google/genai@^1.39.0"
-  }
-}
-</script>
-</head>
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@^19.2.4",
+        "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+        "react/": "https://esm.sh/react@^19.2.4/",
+        "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+        "@google/genai": "https://esm.sh/@google/genai@^1.39.0"
+      }
+    }
+    </script>
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
