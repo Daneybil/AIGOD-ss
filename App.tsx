@@ -102,7 +102,7 @@ const App: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
-  const [activeReferrer, setActiveReferrer] = useState<string>('0x0000000000000000000000000000000000000000');
+  const [activeReferrer, setActiveReferrer] = useState<string>(ethers.ZeroAddress);
 
   // Social Task States
   const [taskTwitter, setTaskTwitter] = useState(false);
@@ -199,7 +199,6 @@ const App: React.FC = () => {
         // After switching, refresh provider
         return new ethers.BrowserProvider((window as any).ethereum);
       } catch (switchError: any) {
-        // This error code indicates that the chain has not been added to MetaMask.
         if (switchError.code === 4902) {
           try {
             await (window as any).ethereum.request({
@@ -299,11 +298,11 @@ const App: React.FC = () => {
 
       await tx.wait();
       setClaimedWallets(prev => new Set(prev).add(connectedAddress.toLowerCase()));
-      alert('Congratulations! 100 AIGODS have been added to your account on-chain.');
+      alert('Airdrop claimed!');
     } catch (err: any) {
       console.error("Claim error:", err);
       const errorMessage = err.reason || err.message || "Transaction failed";
-      alert(`Claim Error: ${errorMessage}`);
+      alert(`Claim failed: ${errorMessage}`);
     }
   };
 
@@ -313,8 +312,8 @@ const App: React.FC = () => {
       return;
     }
 
-    const amountStr = buyInput || "0.0";
-    if (parseFloat(amountStr) <= 0) {
+    const bnbAmount = buyInput || "0.0";
+    if (parseFloat(bnbAmount) <= 0) {
       alert("Please enter a valid amount to buy.");
       return;
     }
@@ -326,22 +325,26 @@ const App: React.FC = () => {
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(PROXY_CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
-      alert(`Confirming transaction for ${amountStr} MATIC...`);
+      alert(`Confirming presale transaction for ${bnbAmount} MATIC...`);
       
-      const tx = await contract.buyPreSale(activeReferrer, {
-        value: ethers.parseEther(amountStr)
-      });
+      // Pass detected referrer or ZeroAddress
+      const tx = await contract.buyPreSale(
+        activeReferrer || ethers.ZeroAddress,
+        {
+          value: ethers.parseEther(bnbAmount.toString())
+        }
+      );
 
       console.log("Buy Tx Sent:", tx.hash);
       alert("Transaction processing... please wait for confirmation.");
       
       await tx.wait();
-      alert("Purchase successful! Your AIGODS tokens have been allocated.");
+      alert("Presale purchase successful!");
       setBuyInput("");
     } catch (err: any) {
       console.error("Buy error:", err);
       const errorMessage = err.reason || err.message || "Transaction failed";
-      alert(`Purchase Error: ${errorMessage}`);
+      alert(`Transaction failed: ${errorMessage}`);
     }
   };
 
@@ -393,6 +396,7 @@ const App: React.FC = () => {
         
         ensureUserRecord(address);
         setIsWalletModalOpen(false);
+        console.log("Wallet connected:", address);
       } catch (err: any) {
         console.error("Wallet error:", err?.message || err);
         if (err.message && err.message.includes("Polygon")) {
@@ -402,15 +406,8 @@ const App: React.FC = () => {
         setIsConnecting(false);
       }
     } else {
-      // Mock for development environments without injection
-      setTimeout(() => {
-        const mockAddr = '0x71C...492b';
-        setConnectedAddress(mockAddr);
-        setWalletBalance("1.2504");
-        ensureUserRecord(mockAddr);
-        setIsConnecting(false);
-        setIsWalletModalOpen(false);
-      }, 1200);
+      alert("Please install MetaMask");
+      setIsConnecting(false);
     }
   };
 
@@ -749,7 +746,7 @@ const App: React.FC = () => {
            </div>
         </div>
 
-        {/* ===== MoonPay Buy BNB Section ===== */}
+        {/* ===== MoonPay Buy MATIC Section ===== */}
         <section id="moonpay-buy-section" className="w-full max-w-4xl mx-auto px-4" style={{
           background: 'linear-gradient(135deg, #0f172a, #020617)',
           padding: '40px 20px',
@@ -760,13 +757,13 @@ const App: React.FC = () => {
         }}>
 
           <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ marginBottom: '15px' }}>
-            Buy BNB Instantly with MoonPay
+            Buy MATIC Instantly with MoonPay
           </h2>
 
           <p style={{ maxWidth: '700px', margin: 'auto', lineHeight: '1.6', opacity: '0.9' }} className="text-xs md:text-base font-medium">
-            Don’t have BNB yet? You can instantly purchase BNB using your debit or credit card
-            through our secure MoonPay gateway. After buying BNB, participate
-            in the AI GODS pre-sale directly.
+            Don’t have MATIC yet? You can instantly purchase MATIC using your debit or credit card
+            through our secure MoonPay gateway. After buying MATIC, participate
+            in the AI GODS pre-sale directly on Polygon.
           </p>
 
           <p style={{ maxWidth: '700px', margin: '15px auto', fontSize: '12px', opacity: '0.8' }} className="font-bold uppercase tracking-widest text-gray-400">
@@ -793,11 +790,11 @@ const App: React.FC = () => {
              onMouseOver={(e) => { (e.currentTarget as any).style.transform='scale(1.05)'; }}
              onMouseOut={(e) => { (e.currentTarget as any).style.transform='scale(1)'; }}
           >
-            Buy BNB with MoonPay
+            Buy MATIC with MoonPay
           </a>
 
           <div className="mt-8 text-[9px] md:text-[11px] text-gray-500 max-w-lg mx-auto leading-relaxed font-bold uppercase">
-            MoonPay allows users to purchase cryptocurrency instantly using debit or credit cards. If you don’t already own BNB, buy it securely through MoonPay and then use it to participate in the pre-sale.
+            MoonPay allows users to purchase cryptocurrency instantly using debit or credit cards. If you don’t already own MATIC, buy it securely through MoonPay and then use it to participate in the pre-sale on Polygon Mainnet.
           </div>
         </section>
 
