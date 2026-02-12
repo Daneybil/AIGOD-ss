@@ -260,11 +260,9 @@ const App: React.FC = () => {
       alert('Congratulations! 100 AIGODS have been added to your account on-chain.');
     } catch (err: any) {
       console.error("Claim error:", err);
-      if (err?.code === 'ACTION_REJECTED') {
-        alert('Transaction was rejected by the user.');
-      } else {
-        alert('Failed to claim airdrop. Make sure you have some BNB for gas.');
-      }
+      // EXTRACT REAL REVERT REASON OR MESSAGE
+      const errorMessage = err.reason || err.message || "Transaction failed";
+      alert(`Claim Error: ${errorMessage}`);
     }
   };
 
@@ -299,11 +297,9 @@ const App: React.FC = () => {
       setBuyInput("");
     } catch (err: any) {
       console.error("Buy error:", err);
-      if (err?.code === 'ACTION_REJECTED') {
-        alert("Transaction rejected.");
-      } else {
-        alert("Transaction failed. Check your balance and network.");
-      }
+      // EXTRACT REAL REVERT REASON OR MESSAGE
+      const errorMessage = err.reason || err.message || "Transaction failed";
+      alert(`Purchase Error: ${errorMessage}`);
     }
   };
 
@@ -500,7 +496,7 @@ const App: React.FC = () => {
             <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-4">NEXT PHASE</span>
           </div>
 
-          {/* TARGET LAUNCHING PRICE - DIMMING EFFECT ENHANCED */}
+          {/* TARGET LAUNCHING PRICE */}
           <div className="w-full p-6 md:p-12 bg-black/60 border-2 border-cyan-400 rounded-3xl md:rounded-[2.5rem] text-center flex flex-col items-center justify-center shadow-[0_0_80px_rgba(0,255,255,0.4)] relative overflow-hidden animate-dim-light-blue">
             <span className="text-[9px] font-black text-cyan-400 uppercase tracking-widest mb-2 italic">TARGET LAUNCHING PRICE</span>
             <span className="text-5xl sm:text-7xl md:text-[8rem] font-black text-white leading-none">$3.50</span>
@@ -613,7 +609,7 @@ const App: React.FC = () => {
            </button>
         </div>
 
-        {/* BUY SECTION - NOW TRIGGERING CONTRACT CALL */}
+        {/* BUY SECTION */}
         <div id="buy-input-section" className="w-full max-w-2xl flex flex-col md:flex-row gap-3 md:gap-4 mb-20 md:mb-24 px-2">
            <input 
              type="text"
@@ -633,7 +629,7 @@ const App: React.FC = () => {
         {/* SOCIAL TASKS SECTION */}
         <div className="w-full max-w-2xl bg-[#080812]/80 backdrop-blur-md border border-gray-800 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-12 text-center shadow-2xl mb-8 md:mb-10">
            <h3 className="text-white font-black text-base md:text-xl uppercase tracking-widest mb-8 md:mb-10">COMPLETE TASKS BEFORE CLAIMING</h3>
-           <div className="flex flex-col gap-5 md:gap-6 max-w-sm mx-auto text-left">
+           <div className="flex flex-col gap-5 md:gap-6 max-sm mx-auto text-left">
               {[
                 { id: 't1', label: 'FOLLOW TWITTER', state: taskTwitter, set: setTaskTwitter },
                 { id: 't2', label: 'JOIN TELEGRAM (CHANNELS & CHAT)', state: taskTelegram, set: setTaskTelegram },
