@@ -83,6 +83,8 @@ const getBadge = (rank: number) => {
   return "ELITE";
 };
 
+const POLYGON_CHAIN_ID = 137; // Polygon Mainnet Decimal
+
 const App: React.FC = () => {
   const [calcAmount, setCalcAmount] = useState<string>('0.0');
   const [calcChain, setCalcChain] = useState<string>('BNB');
@@ -185,6 +187,44 @@ const App: React.FC = () => {
     }
   };
 
+  // Helper to ensure user is on Polygon Mainnet
+  const ensurePolygonNetwork = async (provider: ethers.BrowserProvider) => {
+    const network = await provider.getNetwork();
+    if (Number(network.chainId) !== POLYGON_CHAIN_ID) {
+      try {
+        await (window as any).ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x89' }], // 137 in hex
+        });
+        // After switching, refresh provider
+        return new ethers.BrowserProvider((window as any).ethereum);
+      } catch (switchError: any) {
+        // This error code indicates that the chain has not been added to MetaMask.
+        if (switchError.code === 4902) {
+          try {
+            await (window as any).ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [
+                {
+                  chainId: '0x89',
+                  chainName: 'Polygon Mainnet',
+                  nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+                  rpcUrls: ['https://polygon-rpc.com/'],
+                  blockExplorerUrls: ['https://polygonscan.com/'],
+                },
+              ],
+            });
+            return new ethers.BrowserProvider((window as any).ethereum);
+          } catch (addError) {
+            throw new Error("Could not add Polygon network to your wallet.");
+          }
+        }
+        throw new Error("Please switch to Polygon Mainnet to continue.");
+      }
+    }
+    return provider;
+  };
+
   // CHECK URL FOR REFERRER
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -226,7 +266,9 @@ const App: React.FC = () => {
 
     try {
       // SMART CONTRACT CALL
-      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      let provider = new ethers.BrowserProvider((window as any).ethereum);
+      provider = await ensurePolygonNetwork(provider);
+      
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(PROXY_CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
@@ -260,7 +302,6 @@ const App: React.FC = () => {
       alert('Congratulations! 100 AIGODS have been added to your account on-chain.');
     } catch (err: any) {
       console.error("Claim error:", err);
-      // EXTRACT REAL REVERT REASON OR MESSAGE
       const errorMessage = err.reason || err.message || "Transaction failed";
       alert(`Claim Error: ${errorMessage}`);
     }
@@ -279,11 +320,13 @@ const App: React.FC = () => {
     }
 
     try {
-      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      let provider = new ethers.BrowserProvider((window as any).ethereum);
+      provider = await ensurePolygonNetwork(provider);
+      
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(PROXY_CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
-      alert(`Confirming transaction for ${amountStr} BNB...`);
+      alert(`Confirming transaction for ${amountStr} MATIC...`);
       
       const tx = await contract.buyPreSale(activeReferrer, {
         value: ethers.parseEther(amountStr)
@@ -297,7 +340,6 @@ const App: React.FC = () => {
       setBuyInput("");
     } catch (err: any) {
       console.error("Buy error:", err);
-      // EXTRACT REAL REVERT REASON OR MESSAGE
       const errorMessage = err.reason || err.message || "Transaction failed";
       alert(`Purchase Error: ${errorMessage}`);
     }
@@ -338,7 +380,10 @@ const App: React.FC = () => {
     setIsConnecting(true);
     if ((window as any).ethereum) {
       try {
-        const provider = new ethers.BrowserProvider((window as any).ethereum);
+        let provider = new ethers.BrowserProvider((window as any).ethereum);
+        // Prompt network switch on connect
+        provider = await ensurePolygonNetwork(provider);
+        
         const accounts = await provider.send("eth_requestAccounts", []);
         const address = accounts[0];
         setConnectedAddress(address);
@@ -350,6 +395,9 @@ const App: React.FC = () => {
         setIsWalletModalOpen(false);
       } catch (err: any) {
         console.error("Wallet error:", err?.message || err);
+        if (err.message && err.message.includes("Polygon")) {
+          alert(err.message);
+        }
       } finally {
         setIsConnecting(false);
       }
@@ -1250,7 +1298,7 @@ const App: React.FC = () => {
                     <div className="p-8 md:p-12 bg-[#0a0a0f] rounded-[2.5rem] border border-white/5 group hover:border-cyan-400/20 transition-all">
                        <h4 className="text-lg md:text-2xl font-black italic text-cyan-400 uppercase mb-4 leading-tight">4. EASY PURCHASE OPTIONS</h4>
                        <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest mb-10 leading-relaxed">
-                         Buy with <span className="text-white italic">BNB only for now. Polygon and Solana coming soon</span>. No crypto? No problem. Purchase instantly using <span className="text-white">Debit or Credit Card</span>. Tokens reflect automatically.
+                         Buy with <span className="text-white italic">MATIC on Polygon Mainnet</span>. No crypto? No problem. Purchase instantly using <span className="text-white">Debit or Credit Card</span>. Tokens reflect automatically.
                        </p>
                        <button onClick={() => { setIsWhitepaperOpen(false); setTimeout(() => document.getElementById('moonpay-buy-section')?.scrollIntoView({behavior:'smooth'}), 300); }} className="w-full py-5 bg-cyan-400 text-black font-black uppercase text-[10px] md:text-xs rounded-2xl shadow-[0_0_30px_rgba(34,211,238,0.3)] group-hover:scale-105 transition-all">BUY AIGODS NOW</button>
                     </div>
