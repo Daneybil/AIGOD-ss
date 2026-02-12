@@ -31,10 +31,11 @@ import {
   Target,
   Megaphone
 } from 'lucide-react';
+import { ethers } from "https://esm.sh/ethers@6.13.5";
 import LogoGrid from './components/LogoGrid.tsx';
 import ParticleBackground from './components/ParticleBackground.tsx';
 import ChatAssistant from './components/ChatAssistant.tsx';
-import { AIGODS_LOGO_URL } from './constants.ts';
+import { AIGODS_LOGO_URL, PROXY_CONTRACT_ADDRESS, CONTRACT_ABI } from './constants.ts';
 
 // Firebase imports from CDN for the challenge system
 // @ts-ignore
@@ -99,6 +100,7 @@ const App: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
+  const [activeReferrer, setActiveReferrer] = useState<string>('0x0000000000000000000000000000000000000000');
 
   // Social Task States
   const [taskTwitter, setTaskTwitter] = useState(false);
@@ -183,6 +185,16 @@ const App: React.FC = () => {
     }
   };
 
+  // CHECK URL FOR REFERRER
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref && ethers.isAddress(ref)) {
+      setActiveReferrer(ref);
+      console.log("Active Referrer Detected:", ref);
+    }
+  }, []);
+
   const handleClaimAirdrop = async () => {
     if (!connectedAddress) {
       setIsWalletModalOpen(true);
@@ -190,19 +202,14 @@ const App: React.FC = () => {
     }
 
     // MANDATORY SOCIAL REDIRECTION LOGIC
-    // If tasks are not checked, automatically redirect and stop.
     if (!taskTwitter) {
       window.open('https://x.com/AIGODSCOIN', '_blank');
       alert('FOLLOW REQUIRED: Please follow us on Twitter/X to unlock your claim!');
       return;
     }
     if (!taskTelegram) {
-      // Direct to Official Channel first
       window.open('https://t.me/AIGODSCOINOFFICIAL', '_blank');
-      // Also mention the chat group
-      setTimeout(() => {
-        window.open('https://t.me/AIGODSCOIN', '_blank');
-      }, 1000);
+      setTimeout(() => { window.open('https://t.me/AIGODSCOIN', '_blank'); }, 1000);
       alert('JOIN REQUIRED: Please join our Telegram Official Channel and Chat Group to unlock your claim!');
       return;
     }
@@ -218,21 +225,29 @@ const App: React.FC = () => {
     }
 
     try {
-      const userRef = doc(db, "users", connectedAddress);
-      const snap = await getDoc(userRef);
-      
-      if (snap.exists() && snap.data().airdropClaimed) {
+      // SMART CONTRACT CALL
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(PROXY_CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+      // Check on-chain first
+      const hasClaimedOnChain = await contract.hasClaimedAirdrop(connectedAddress);
+      if (hasClaimedOnChain) {
+        alert('You have already claimed your airdrop on-chain!');
         setClaimedWallets(prev => new Set(prev).add(connectedAddress.toLowerCase()));
-        alert('Airdrop already claimed for this wallet!');
         return;
       }
 
+      alert('Please confirm the Airdrop Claim in your wallet...');
+      const tx = await contract.claimAirdrop();
+      console.log("Claim Tx Sent:", tx.hash);
+      
+      // FIREBASE UPDATE
+      const userRef = doc(db, "users", connectedAddress);
       await updateDoc(userRef, {
         airdropClaimed: true,
         tokens: increment(100)
       });
-
-      // Also add to feed
       await addDoc(collection(db, "feed"), {
         wallet: connectedAddress,
         type: 'airdrop',
@@ -240,11 +255,55 @@ const App: React.FC = () => {
         time: new Date().toISOString()
       });
 
+      await tx.wait();
       setClaimedWallets(prev => new Set(prev).add(connectedAddress.toLowerCase()));
-      alert('Congratulations! 100 AIGODS have been added to your account.');
+      alert('Congratulations! 100 AIGODS have been added to your account on-chain.');
     } catch (err: any) {
       console.error("Claim error:", err);
-      alert('Failed to claim airdrop. Please try again.');
+      if (err?.code === 'ACTION_REJECTED') {
+        alert('Transaction was rejected by the user.');
+      } else {
+        alert('Failed to claim airdrop. Make sure you have some BNB for gas.');
+      }
+    }
+  };
+
+  const handleBuyPresale = async () => {
+    if (!connectedAddress) {
+      setIsWalletModalOpen(true);
+      return;
+    }
+
+    const amountStr = buyInput || "0.0";
+    if (parseFloat(amountStr) <= 0) {
+      alert("Please enter a valid amount to buy.");
+      return;
+    }
+
+    try {
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(PROXY_CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+      alert(`Confirming transaction for ${amountStr} BNB...`);
+      
+      const tx = await contract.buyPreSale(activeReferrer, {
+        value: ethers.parseEther(amountStr)
+      });
+
+      console.log("Buy Tx Sent:", tx.hash);
+      alert("Transaction processing... please wait for confirmation.");
+      
+      await tx.wait();
+      alert("Purchase successful! Your AIGODS tokens have been allocated.");
+      setBuyInput("");
+    } catch (err: any) {
+      console.error("Buy error:", err);
+      if (err?.code === 'ACTION_REJECTED') {
+        alert("Transaction rejected.");
+      } else {
+        alert("Transaction failed. Check your balance and network.");
+      }
     }
   };
 
@@ -279,26 +338,31 @@ const App: React.FC = () => {
     }
   }, [isChallengeModalOpen]);
 
-  const connectWallet = (walletName: string) => {
+  const connectWallet = async (walletName: string) => {
     setIsConnecting(true);
     if ((window as any).ethereum) {
-      (window as any).ethereum.request({ method: 'eth_requestAccounts' })
-        .then((accounts: string[]) => {
-          setConnectedAddress(accounts[0]);
-          setWalletBalance((Math.random() * 10).toFixed(4)); // Simulated balance
-          ensureUserRecord(accounts[0]);
-          setIsConnecting(false);
-          setIsWalletModalOpen(false);
-        })
-        .catch((err: any) => {
-          console.error("Wallet error:", err?.message || err);
-          setIsConnecting(false);
-        });
+      try {
+        const provider = new ethers.BrowserProvider((window as any).ethereum);
+        const accounts = await provider.send("eth_requestAccounts", []);
+        const address = accounts[0];
+        setConnectedAddress(address);
+        
+        const balanceWei = await provider.getBalance(address);
+        setWalletBalance(ethers.formatEther(balanceWei).slice(0, 8));
+        
+        ensureUserRecord(address);
+        setIsWalletModalOpen(false);
+      } catch (err: any) {
+        console.error("Wallet error:", err?.message || err);
+      } finally {
+        setIsConnecting(false);
+      }
     } else {
+      // Mock for development environments without injection
       setTimeout(() => {
         const mockAddr = '0x71C...492b';
         setConnectedAddress(mockAddr);
-        setWalletBalance("1.2504"); // Simulated balance
+        setWalletBalance("1.2504");
         ensureUserRecord(mockAddr);
         setIsConnecting(false);
         setIsWalletModalOpen(false);
@@ -322,7 +386,6 @@ const App: React.FC = () => {
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
-        // Fallback to WhatsApp
         window.open(`https://wa.me/?text=${encodeURIComponent(shareData.text + " " + referralUrl)}`, '_blank');
       }
     } catch (err) {
@@ -550,7 +613,7 @@ const App: React.FC = () => {
            </button>
         </div>
 
-        {/* BUY SECTION */}
+        {/* BUY SECTION - NOW TRIGGERING CONTRACT CALL */}
         <div id="buy-input-section" className="w-full max-w-2xl flex flex-col md:flex-row gap-3 md:gap-4 mb-20 md:mb-24 px-2">
            <input 
              type="text"
@@ -559,7 +622,10 @@ const App: React.FC = () => {
              value={buyInput}
              onChange={(e) => setBuyInput(e.target.value)}
            />
-           <button onClick={() => !connectedAddress ? setIsWalletModalOpen(true) : alert('Confirm transaction in your wallet')} className="px-8 md:px-12 py-5 md:py-6 bg-gradient-to-r from-[#ff00ff] via-[#8b5cf6] to-[#00ffff] rounded-2xl md:rounded-[1.5rem] text-black font-black text-lg md:text-xl uppercase tracking-tighter shadow-xl hover:scale-[1.02] transition-all">
+           <button 
+             onClick={handleBuyPresale}
+             className="px-8 md:px-12 py-5 md:py-6 bg-gradient-to-r from-[#ff00ff] via-[#8b5cf6] to-[#00ffff] rounded-2xl md:rounded-[1.5rem] text-black font-black text-lg md:text-xl uppercase tracking-tighter shadow-xl hover:scale-[1.02] transition-all"
+           >
              BUY AIGODS NOW
            </button>
         </div>
@@ -1018,7 +1084,7 @@ const App: React.FC = () => {
                </button>
              </div>
              
-             {/* 2x2 Wallet Grid - VISIBLY SHOWING EXCEPTIONALLY WELL */}
+             {/* 2x2 Wallet Grid */}
              <div className="grid grid-cols-2 gap-4 w-full">
                {[
                  { name: 'MetaMask', icon: 'https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg' },
