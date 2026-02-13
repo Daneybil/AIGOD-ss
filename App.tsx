@@ -866,7 +866,6 @@ const App: React.FC = () => {
           <div className="absolute inset-0 bg-[#020205]/98" onClick={() => setIsChallengeModalOpen(false)}></div>
           
           <div className="relative w-full max-w-6xl h-full md:h-[95vh] bg-[#05060f] border-x md:border border-gray-800/40 md:rounded-[2.5rem] overflow-hidden flex flex-col shadow-[0_0_80px_rgba(0,0,0,1)]">
-              {/* Header */}
               <div className="p-6 md:p-8 border-b border-gray-800/40 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 md:w-16 md:h-16 border-2 border-yellow-400/40 rounded-xl flex items-center justify-center bg-yellow-400/5">
@@ -886,7 +885,6 @@ const App: React.FC = () => {
               </div>
               
               <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 scrollbar-hide">
-                {/* 3 Top Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                    {[
                      { emoji: "🥇", amount: "20,000 AIGODS", value: "$70,000", label: "COMMITTED CHAMPION REWARD", bg: "bg-blue-600/5", border: "border-blue-500/20" },
@@ -903,7 +901,6 @@ const App: React.FC = () => {
                    ))}
                 </div>
 
-                {/* Dashboard & Live Feed Row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-[#0a0c1a] p-6 md:p-8 rounded-[2rem] border border-gray-800/40 relative overflow-hidden">
                     <div className="flex items-center gap-2 mb-8">
@@ -956,7 +953,6 @@ const App: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Leaderboard Table Rebuild */}
                 <div className="w-full overflow-hidden rounded-[1.5rem] border border-gray-800/40 shadow-2xl">
                   <table className="w-full text-left min-w-[500px]">
                     <thead className="bg-yellow-400">
@@ -1002,7 +998,6 @@ const App: React.FC = () => {
                   </table>
                 </div>
 
-                {/* STRATEGIC EXPANSION PROTOCOL */}
                 <div className="pt-12 border-t border-gray-800/40 bg-gradient-to-b from-transparent to-blue-900/5 p-8 rounded-[3rem]">
                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8">
                      <div>

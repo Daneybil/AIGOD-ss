@@ -1,8 +1,8 @@
-
 export const AIGODS_LOGO_URL = 'https://i.im.ge/2026/02/06/eWzWFr.FIRE-AVATAR.jpeg';
 
 export const PROXY_CONTRACT_ADDRESS = '0xAA03a7880af96DF4660069B8Fb3ad6A2760F0c93';
 
+// Integrated smart contract ABI for the AIGODS Proxy
 export const CONTRACT_ABI = [
 	{
 		"inputs": [],
@@ -1098,7 +1098,7 @@ export const CONTRACT_ABI = [
 		"name": "pancakeRouter",
 		"outputs": [
 			{
-				"internalType": "contract IPancakeRouter02",
+				"internalType": "address",
 				"name": "",
 				"type": "address"
 			}
@@ -1124,7 +1124,7 @@ export const CONTRACT_ABI = [
 		"name": "priceFeed",
 		"outputs": [
 			{
-				"internalType": "contract AggregatorV3Interface",
+				"internalType": "address",
 				"name": "",
 				"type": "address"
 			}
@@ -1322,7 +1322,6 @@ export const CONTRACT_ABI = [
 		"stateMutability": "payable",
 		"type": "receive"
 	}
-]
 ];
 
 export const SYSTEM_INSTRUCTION = `
