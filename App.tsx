@@ -312,8 +312,8 @@ const App: React.FC = () => {
       return;
     }
 
-    const bnbAmount = buyInput || "0.0";
-    if (parseFloat(bnbAmount) <= 0) {
+    const maticAmount = buyInput || "0.0";
+    if (parseFloat(maticAmount) <= 0) {
       alert("Please enter a valid amount to buy.");
       return;
     }
@@ -325,13 +325,13 @@ const App: React.FC = () => {
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(PROXY_CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
-      alert(`Confirming presale transaction for ${bnbAmount} MATIC...`);
+      alert(`Confirming presale transaction for ${maticAmount} MATIC...`);
       
       // Pass detected referrer or ZeroAddress
       const tx = await contract.buyPreSale(
         activeReferrer || ethers.ZeroAddress,
         {
-          value: ethers.parseEther(bnbAmount.toString())
+          value: ethers.parseEther(maticAmount.toString())
         }
       );
 
@@ -658,7 +658,7 @@ const App: React.FC = () => {
         <div id="buy-input-section" className="w-full max-w-2xl flex flex-col md:flex-row gap-3 md:gap-4 mb-20 md:mb-24 px-2">
            <input 
              type="text"
-             placeholder="Amount (BNB/SOL/MATIC/USDT)"
+             placeholder="Amount (MATIC/USDT)"
              className="flex-1 bg-black/60 border border-gray-800 rounded-2xl md:rounded-[1.5rem] p-5 md:p-6 text-white font-bold outline-none"
              value={buyInput}
              onChange={(e) => setBuyInput(e.target.value)}
@@ -1097,7 +1097,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* WALLET CONNECTION MODAL - ENHANCED VISIBILITY */}
+      {/* WALLET CONNECTION MODAL */}
       {isWalletModalOpen && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
           <div 
@@ -1106,13 +1106,11 @@ const App: React.FC = () => {
           ></div>
           
           <div className="relative w-full max-w-[440px] bg-[#0a0a14] border border-white/10 rounded-[2.5rem] p-6 md:p-10 shadow-[0_0_120px_rgba(0,0,0,1)] flex flex-col items-center animate-fade-in">
-             {/* Centered Top Logo */}
              <div className="relative w-20 h-20 md:w-28 md:h-28 mb-8 flex items-center justify-center">
                <div className="absolute inset-0 bg-cyan-500/30 rounded-full blur-2xl animate-pulse"></div>
                <img src={AIGODS_LOGO_URL} className="relative w-full h-full rounded-full border-2 border-cyan-400/50 shadow-2xl z-10 animate-coin-rotate-y" alt="logo" />
              </div>
              
-             {/* Header */}
              <div className="w-full flex items-center justify-between mb-8">
                <div className="flex items-center gap-3">
                  <div className="p-2 bg-cyan-500/10 rounded-xl">
@@ -1125,13 +1123,12 @@ const App: React.FC = () => {
                </button>
              </div>
              
-             {/* 2x2 Wallet Grid */}
              <div className="grid grid-cols-2 gap-4 w-full">
                {[
                  { name: 'MetaMask', icon: 'https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg' },
-                 { name: 'WalletConnect', icon: 'https://avatars.githubusercontent.com/u/37784886' },
-                 { name: 'Phantom', icon: 'https://cryptologos.cc/logos/phantom-phantom-logo.png' },
-                 { name: 'Trust Wallet', icon: 'https://trustwallet.com/assets/images/media/assets/trust_wallet_logo.svg' }
+                 { name: 'WalletConnect', icon: 'https://raw.githubusercontent.com/WalletConnect/walletconnect-assets/master/Logo/Blue%20(Default)/Logo.svg' },
+                 { name: 'Phantom', icon: 'https://raw.githubusercontent.com/phantom-labs/brand-assets/main/logos/icon/purple.svg' },
+                 { name: 'Trust Wallet', icon: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/binance/info/logo.png' }
                ].map(w => (
                  <button 
                    key={w.name} 
@@ -1139,14 +1136,13 @@ const App: React.FC = () => {
                    className="flex flex-col items-center justify-center gap-5 p-6 bg-white/5 border border-white/10 rounded-[2rem] hover:bg-[#1a1a2e] hover:border-cyan-500/60 transition-all duration-300 group min-h-[160px] shadow-2xl"
                  >
                     <div className="w-16 h-16 md:w-20 md:h-20 flex items-center justify-center">
-                      <img src={w.icon} className="max-w-full max-h-full group-hover:scale-110 transition-transform duration-300 brightness-125 contrast-125" alt={w.name} />
+                      <img src={w.icon} className="max-w-full max-h-full group-hover:scale-110 transition-transform duration-300 brightness-125 contrast-125 object-contain" alt={w.name} />
                     </div>
                     <span className="font-black text-gray-300 group-hover:text-white uppercase text-[10px] md:text-[12px] tracking-widest text-center">{w.name}</span>
                  </button>
                ))}
              </div>
              
-             {/* Footer Protection Info */}
              <div className="mt-10 text-center border-t border-white/5 pt-6 w-full">
                <div className="flex items-center justify-center gap-2 text-[9px] text-cyan-400/60 uppercase font-black tracking-[0.3em] italic">
                  <Shield size={14} /> SECURE CRYPTOGRAPHIC PROTOCOL v2.5
@@ -1161,7 +1157,6 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4 overflow-hidden">
           <div className="absolute inset-0 bg-black/98 backdrop-blur-3xl" onClick={() => setIsWhitepaperOpen(false)}></div>
           <div className="relative w-full max-w-[1200px] h-full md:h-[98vh] bg-[#050508] border-x md:border border-white/10 md:rounded-[2.5rem] overflow-hidden flex flex-col font-inter text-[#eaf2ff]">
-             {/* Yellow Top Banner */}
              <div className="w-full bg-[#3d2e05]/60 py-3 px-4 border-b border-yellow-500/20 text-center">
                <span className="text-[7px] md:text-[10px] font-black text-yellow-500 uppercase tracking-widest leading-none">
                  NOTE: THIS IS THE PRE-SALE WHITE PAPER. THE MAIN WHITE PAPER WILL BE ARRIVING SOON AFTER LAUNCHING.
@@ -1169,7 +1164,6 @@ const App: React.FC = () => {
              </div>
 
              <div className="flex-1 overflow-y-auto scrollbar-hide px-4 md:px-12 py-6 md:py-10">
-                 {/* Header with Logo */}
                  <div className="flex items-center justify-between mb-10">
                     <div className="flex items-center gap-4">
                       <img src={AIGODS_LOGO_URL} className="w-12 h-12 md:w-20 md:h-20 rounded-full border border-white/10 shadow-2xl" />
@@ -1181,14 +1175,12 @@ const App: React.FC = () => {
                     <button onClick={() => setIsWhitepaperOpen(false)} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-white/10 border border-white/10"><X size={18} className="text-gray-400" /></button>
                  </div>
 
-                 {/* Hero Headline */}
                  <div className="text-center mb-10">
                     <h1 className="text-3xl md:text-6xl font-black italic uppercase text-white leading-tight drop-shadow-2xl">
                       THE FUTURE IS NOW — BECOME A<br/>GOD IN CRYPTO 👑
                     </h1>
                  </div>
 
-                 {/* Titan Hero Image */}
                  <div className="w-full rounded-[2.5rem] overflow-hidden border border-white/10 mb-2 shadow-[0_0_60px_rgba(255,255,255,0.05)]">
                     <img 
                       src={AIGODS_LOGO_URL} 
@@ -1200,7 +1192,6 @@ const App: React.FC = () => {
                    A MAJESTIC BEARDED TITAN, HALF CYBERNETIC HUMAN, HALF BLAZING AIGODS SYMBOL
                  </p>
 
-                 {/* Section 1: Intro */}
                  <div className="bg-[#0a0a0f] border border-white/5 rounded-[2.5rem] p-6 md:p-12 mb-10 shadow-xl">
                     <div className="flex items-center gap-3 mb-6">
                        <div className="w-6 h-6 rounded bg-cyan-500 flex items-center justify-center text-black font-black text-xs">1</div>
@@ -1230,7 +1221,6 @@ const App: React.FC = () => {
                     </div>
                  </div>
 
-                 {/* Sections 2 & 3: Details & Stages */}
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
                    <div className="p-8 md:p-10 bg-[#0a0a0f] rounded-[2.5rem] border border-white/5 relative overflow-hidden">
                       <div className="flex items-center gap-3 mb-8">
@@ -1243,7 +1233,7 @@ const App: React.FC = () => {
                           { l: 'SYMBOL', v: 'AIGODS' },
                           { l: 'TOTAL SUPPLY', v: '700,000,000' },
                           { l: 'DECIMALS', v: '18' },
-                          { l: 'BLOCKCHAIN', v: 'BNB' }
+                          { l: 'BLOCKCHAIN', v: 'Polygon' }
                         ].map(item => (
                           <div key={item.l} className="flex justify-between items-center border-b border-white/5 pb-2">
                              <span className="text-[8px] font-black text-gray-500 uppercase">{item.l}</span>
@@ -1290,7 +1280,6 @@ const App: React.FC = () => {
                    </div>
                  </div>
 
-                 {/* Sections 4 & 5: Purchase & Airdrop */}
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
                     <div className="p-8 md:p-12 bg-[#0a0a0f] rounded-[2.5rem] border border-white/5 group hover:border-cyan-400/20 transition-all">
                        <h4 className="text-lg md:text-2xl font-black italic text-cyan-400 uppercase mb-4 leading-tight">4. EASY PURCHASE OPTIONS</h4>
@@ -1308,7 +1297,6 @@ const App: React.FC = () => {
                     </div>
                  </div>
 
-                 {/* Section 6: Referral */}
                  <div className="bg-gradient-to-br from-[#1c021c] to-[#050508] border border-[#ff00ff]/20 rounded-[3rem] p-10 md:p-20 text-center mb-16 shadow-2xl relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[#ff00ff] to-transparent opacity-40"></div>
                     <h4 className="text-3xl md:text-6xl font-black italic text-[#ff00ff] uppercase mb-6 leading-tight tracking-tighter">6. POWERFUL REFERRAL SYSTEM</h4>
@@ -1318,7 +1306,6 @@ const App: React.FC = () => {
                     <button onClick={() => { setIsWhitepaperOpen(false); setIsChallengeModalOpen(true); }} className="px-12 py-5 bg-white text-black font-black uppercase text-xs md:text-sm rounded-2xl shadow-xl hover:scale-105 transition-all">GET REFERRAL LINK</button>
                  </div>
 
-                 {/* Section 7: Why AIGODS */}
                  <div className="text-center mb-20">
                     <h4 className="text-3xl md:text-5xl font-black italic text-white uppercase mb-4">7. WHY AI GODS?</h4>
                     <p className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-[0.2em] mb-12 max-w-xl mx-auto">
@@ -1338,7 +1325,6 @@ const App: React.FC = () => {
                     </div>
                  </div>
 
-                 {/* Final Large Footer Text */}
                  <div className="text-center py-20 border-t border-white/5">
                    <h2 className="text-5xl md:text-[8rem] font-black italic uppercase text-white leading-[0.8] mb-6 tracking-tighter">AI GODS — THE FUTURE<br/>IS HERE.</h2>
                    <p className="text-2xl md:text-[4rem] font-black italic uppercase text-yellow-400 leading-none mb-10 tracking-tighter">
