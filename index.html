@@ -12,12 +12,20 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@400;700&family=Roboto:wght@400;500;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
+      /* GLOBAL RESPONSIVE FIXES */
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+
       html, body {
         overflow-x: hidden;
         width: 100%;
+        max-width: 100vw;
         scroll-behavior: smooth;
         position: relative;
+        -webkit-overflow-scrolling: touch;
       }
+
       body {
         font-family: 'Inter', sans-serif;
         background-color: #000000;
@@ -25,6 +33,25 @@
         margin: 0;
         -webkit-text-size-adjust: 100%;
       }
+
+      #root {
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden;
+        position: relative;
+      }
+
+      img, svg, video, iframe, canvas {
+        max-width: 100%;
+        height: auto;
+      }
+
+      .break-words-all {
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: break-all;
+      }
+
       .text-gradient-magenta {
         background: linear-gradient(90deg, #00ffff, #ff00ff, #ffffff);
         -webkit-background-clip: text;
@@ -168,11 +195,9 @@
       @media only screen and (max-width: 800px) {
         * {
           max-width: 100%;
-          box-sizing: border-box;
         }
         
         .container, section, div, main, footer {
-          width: 100%;
           padding-left: 12px;
           padding-right: 12px;
         }

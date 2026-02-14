@@ -283,22 +283,28 @@ const App: React.FC = () => {
       const tx = await contract.claimAirdrop();
       console.log("Claim Tx Sent:", tx.hash);
       
-      // FIREBASE UPDATE
-      const userRef = doc(db, "users", connectedAddress);
-      await updateDoc(userRef, {
-        airdropClaimed: true,
-        tokens: increment(100)
-      });
-      await addDoc(collection(db, "feed"), {
-        wallet: connectedAddress,
-        type: 'airdrop',
-        amount: 100,
-        time: new Date().toISOString()
-      });
+      // Wait for receipt confirmation
+      const receipt = await tx.wait();
+      
+      if (receipt && receipt.status === 1) {
+        // FIREBASE UPDATE ON SUCCESS
+        const userRef = doc(db, "users", connectedAddress);
+        await updateDoc(userRef, {
+          airdropClaimed: true,
+          tokens: increment(100)
+        });
+        await addDoc(collection(db, "feed"), {
+          wallet: connectedAddress,
+          type: 'airdrop',
+          amount: 100,
+          time: new Date().toISOString()
+        });
 
-      await tx.wait();
-      setClaimedWallets(prev => new Set(prev).add(connectedAddress.toLowerCase()));
-      alert('Airdrop claimed!');
+        setClaimedWallets(prev => new Set(prev).add(connectedAddress.toLowerCase()));
+        alert(`AIRDROP SUCCESS! 100 AIGODS have been allocated to your profile. Tx: ${tx.hash}`);
+      } else {
+        alert("Transaction failed on the blockchain. Please try again.");
+      }
     } catch (err: any) {
       console.error("Claim error:", err);
       const errorMessage = err.reason || err.message || "Transaction failed";
@@ -338,9 +344,53 @@ const App: React.FC = () => {
       console.log("Buy Tx Sent:", tx.hash);
       alert("Transaction processing... please wait for confirmation.");
       
-      await tx.wait();
-      alert("Presale purchase successful!");
-      setBuyInput("");
+      const receipt = await tx.wait();
+      
+      if (receipt && receipt.status === 1) {
+        // 1. Handle Referrer Update in Firebase
+        if (activeReferrer && activeReferrer !== ethers.ZeroAddress && activeReferrer.toLowerCase() !== connectedAddress.toLowerCase()) {
+           try {
+             const referrerRef = doc(db, "users", activeReferrer);
+             // Unique path: referrals/{referrerWallet}/buyers/{buyerWallet}
+             const buyerRecordRef = doc(db, "referrals", activeReferrer, "buyers", connectedAddress);
+             
+             // Check if already referred to prevent multiple increments for the same buyer
+             const recordSnap = await getDoc(buyerRecordRef);
+             if (!recordSnap.exists()) {
+               await setDoc(buyerRecordRef, {
+                 buyer: connectedAddress,
+                 amount: maticAmount,
+                 timestamp: new Date().toISOString()
+               });
+               
+               // Increment atomic counter
+               await updateDoc(referrerRef, {
+                 referrals: increment(1)
+               });
+               console.log("SUCCESS: Referral tracking updated in Firebase for", activeReferrer);
+             }
+           } catch (fErr: any) {
+             console.error("Firebase Referral Error:", fErr.message);
+           }
+        }
+
+        // 2. Update Live Feed
+        try {
+          await addDoc(collection(db, "feed"), {
+            wallet: connectedAddress,
+            type: 'purchase',
+            amount: maticAmount,
+            time: new Date().toISOString()
+          });
+        } catch (feedErr) {
+          console.error("Feed error:", feedErr);
+        }
+
+        alert(`Presale purchase successful! Tx: ${tx.hash}`);
+        setBuyInput("");
+      } else {
+        alert("Transaction failed on the blockchain. Please check PolygonScan.");
+      }
     } catch (err: any) {
       console.error("Buy error:", err);
       const errorMessage = err.reason || err.message || "Transaction failed";
@@ -441,7 +491,7 @@ const App: React.FC = () => {
   }, [connectedAddress, leaderboardData]);
 
   return (
-    <div className="min-h-screen relative flex flex-col items-center bg-black overflow-x-hidden pb-10 font-inter text-white">
+    <div className="min-h-screen w-full relative flex flex-col items-center bg-black overflow-x-hidden pb-10 font-inter text-white">
       <ParticleBackground />
       <ChatAssistant logoUrl={AIGODS_LOGO_URL} />
 
@@ -488,16 +538,16 @@ const App: React.FC = () => {
       {/* 2. HERO SECTION */}
       <div className="w-full max-w-4xl px-4 flex flex-col items-center mt-6">
         <div className="w-full max-w-[95%] md:max-w-4xl py-4 md:py-8 px-4 rounded-full bg-gradient-to-r from-[#ff00ff] via-[#00ffff] to-[#00ffff] flex items-center justify-center shadow-[0_0_60px_rgba(0,255,255,0.5)] mb-10 md:mb-14 transition-all text-center">
-           <h2 className="text-sm md:text-5xl font-black italic text-black uppercase tracking-tighter leading-none">
+           <h2 className="text-[3vw] xs:text-sm md:text-5xl font-black italic text-black uppercase tracking-tighter leading-none">
              LAUNCHING SOON — 10$ BILLION+ BACKED
            </h2>
         </div>
 
-        <h1 className="text-5xl sm:text-7xl md:text-[10rem] lg:text-[12rem] font-black text-gradient-magenta leading-none uppercase tracking-tighter mb-4 drop-shadow-2xl text-center">
+        <h1 className="text-[14vw] sm:text-7xl md:text-[10rem] lg:text-[12rem] font-black text-gradient-magenta leading-none uppercase tracking-tighter mb-4 drop-shadow-2xl text-center">
           AIGODS
         </h1>
 
-        <p className="text-cyan-400 font-black tracking-[0.2em] text-[9px] md:text-sm uppercase mb-8 italic text-center">
+        <p className="text-cyan-400 font-black tracking-[0.2em] text-[2.5vw] xs:text-[9px] md:text-sm uppercase mb-8 italic text-center">
           THE FUTURE IS NOW – BECOME A GOD <br className="md:hidden" /> IN CRYPTO 👑
         </p>
 
@@ -520,7 +570,7 @@ const App: React.FC = () => {
            ></iframe>
         </div>
 
-        <h2 className="text-4xl md:text-8xl font-black text-[#00ffff] uppercase tracking-tighter mb-8 md:mb-12 italic text-center">
+        <h2 className="text-[10vw] md:text-8xl font-black text-[#00ffff] uppercase tracking-tighter mb-8 md:mb-12 italic text-center">
           PRESALE DETAILS
         </h2>
 
@@ -528,7 +578,7 @@ const App: React.FC = () => {
         <div className="w-full max-w-2xl flex flex-col gap-4 md:gap-6 mb-16">
           <div className="w-full p-6 md:p-12 bg-black/40 border border-gray-800 rounded-3xl md:rounded-[2rem] text-center flex flex-col items-center justify-center transition-all">
             <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2">STAGE 1 PRICE</span>
-            <span className="text-5xl md:text-[6rem] font-black text-white leading-none">$0.20</span>
+            <span className="text-[15vw] md:text-[6rem] font-black text-white leading-none">$0.20</span>
             <div className="flex items-center gap-2 mt-4">
               <div className="w-2.5 h-2.5 rounded-full bg-[#16da64] animate-pulse"></div>
               <span className="text-[10px] font-black text-[#16da64] uppercase tracking-widest">ACTIVE NOW</span>
@@ -537,14 +587,14 @@ const App: React.FC = () => {
 
           <div className="w-full p-6 md:p-12 bg-black/40 border border-gray-800 rounded-3xl md:rounded-[2rem] text-center flex flex-col items-center justify-center opacity-40">
             <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">STAGE 2 PRICE</span>
-            <span className="text-5xl md:text-[6rem] font-black text-gray-400 leading-none">$0.80</span>
+            <span className="text-[15vw] md:text-[6rem] font-black text-gray-400 leading-none">$0.80</span>
             <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-4">NEXT PHASE</span>
           </div>
 
           {/* TARGET LAUNCHING PRICE */}
           <div className="w-full p-6 md:p-12 bg-black/60 border-2 border-cyan-400 rounded-3xl md:rounded-[2.5rem] text-center flex flex-col items-center justify-center shadow-[0_0_80px_rgba(0,255,255,0.4)] relative overflow-hidden animate-dim-light-blue">
             <span className="text-[9px] font-black text-cyan-400 uppercase tracking-widest mb-2 italic">TARGET LAUNCHING PRICE</span>
-            <span className="text-5xl sm:text-7xl md:text-[8rem] font-black text-white leading-none">$3.50</span>
+            <span className="text-[12vw] sm:text-7xl md:text-[8rem] font-black text-white leading-none">$3.50</span>
             <span className="text-[11px] md:text-[14px] font-black text-cyan-400 uppercase tracking-[0.5em] mt-6 italic">2026</span>
           </div>
         </div>
@@ -585,7 +635,7 @@ const App: React.FC = () => {
              CONNECT WALLET
            </button>
            <div className="flex flex-col items-center gap-1">
-             <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+             <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest break-words-all">
                {connectedAddress ? `CONNECTED: ${connectedAddress.slice(0,10)}...` : 'NOT CONNECTED'}
              </span>
              {connectedAddress && (
@@ -722,7 +772,7 @@ const App: React.FC = () => {
 
            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 items-center max-w-3xl mx-auto px-2">
               <div className="md:col-span-8 bg-black border border-gray-800 rounded-xl md:rounded-2xl p-4 flex items-center justify-between text-gray-500 text-[8px] md:text-[10px] font-bold overflow-hidden h-14 md:h-16 shadow-inner">
-                 <span className="truncate pr-4">{connectedAddress ? `${window.location.origin}?ref=${connectedAddress}` : "Connect wallet to generate referral link"}</span>
+                 <span className="truncate pr-4 break-words-all">{connectedAddress ? `${window.location.origin}?ref=${connectedAddress}` : "Connect wallet to generate referral link"}</span>
                  {!connectedAddress && <Lock size={14} className="opacity-40 shrink-0" />}
               </div>
               <div className="md:col-span-4">
@@ -910,7 +960,7 @@ const App: React.FC = () => {
                     <div className="space-y-6 mb-8">
                       <div className="flex justify-between items-center border-b border-gray-800/40 pb-3">
                          <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">WALLET</span>
-                         <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest">{connectedAddress ? `${connectedAddress.slice(0,10)}...${connectedAddress.slice(-4)}` : 'NOT CONNECTED'}</span>
+                         <span className="text-[9px] font-black text-blue-500 uppercase tracking-widest break-words-all">{connectedAddress ? `${connectedAddress.slice(0,10)}...${connectedAddress.slice(-4)}` : 'NOT CONNECTED'}</span>
                       </div>
                       <div className="flex justify-between items-center border-b border-gray-800/40 pb-3">
                          <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">TOTAL REFERRALS</span>
@@ -944,7 +994,7 @@ const App: React.FC = () => {
                       <div className="absolute inset-0 p-8 flex flex-col gap-2 overflow-y-auto mt-16 scrollbar-hide">
                          {liveFeedData.map(feed => (
                            <div key={feed.id} className="bg-black/40 border border-gray-800/40 p-3 rounded-xl flex items-center justify-between animate-fade-in">
-                             <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">{feed.wallet.slice(0,6)}...</span>
+                             <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest break-words-all">{feed.wallet.slice(0,6)}...</span>
                              <span className="text-[8px] font-black text-green-500 italic">EARNED COMMISSION</span>
                            </div>
                          ))}
@@ -968,7 +1018,16 @@ const App: React.FC = () => {
                       {leaderboardData.length > 0 ? leaderboardData.map((user, i) => (
                         <tr key={user.address} className="hover:bg-white/[0.02] transition-all group">
                           <td className="px-6 py-5"><span className="text-xl md:text-2xl font-black italic text-yellow-400 tracking-tighter group-hover:scale-110 transition-all inline-block">#{i + 1}</span></td>
-                          <td className="px-6 py-5 font-mono text-blue-500 text-[10px] font-black tracking-widest">{user.address.slice(0, 10)}...{user.address.slice(-4)}</td>
+                          <td 
+                            className="px-6 py-5 font-mono text-blue-500 text-[10px] font-black tracking-widest cursor-pointer hover:text-cyan-400 transition-colors break-words-all"
+                            onClick={() => {
+                                navigator.clipboard.writeText(user.address);
+                                alert(`Copied to clipboard: ${user.address}`);
+                            }}
+                            title="Click to copy full address"
+                          >
+                            {user.address.slice(0, 10)}...{user.address.slice(-4)}
+                          </td>
                           <td className="px-6 py-5 font-black text-white text-lg italic">{user.referrals || 0}</td>
                           <td className="px-6 py-5">
                              <div className="w-24 h-1.5 bg-gray-800 rounded-full overflow-hidden">
