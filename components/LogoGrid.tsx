@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { LOGO_DATA } from '../constants.ts';
 
@@ -18,8 +19,10 @@ const LogoGrid: React.FC = () => {
                 ['Apple', 'X', 'OpenAI', 'BL', 'Meta', 'Microsoft', 'CO', 'Ethereum', 'Solana', 'Polygon', 'Phantom'].includes(logo.name) 
                   ? 'filter invert brightness-200' 
                   : ''
-              }`} 
+              }`}
+              style={{ display: 'block', visibility: 'visible', opacity: 1 }}
               onError={(e) => {
+                 (e.target as HTMLImageElement).onerror = null;
                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${logo.name}&background=0D0D0D&color=fff&size=64&font-size=0.4&bold=true`;
               }}
             />

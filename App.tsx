@@ -83,6 +83,8 @@ const getBadge = (rank: number) => {
   return "ELITE";
 };
 
+const LOGO_FALLBACK = "https://ui-avatars.com/api/?name=AIGODS&background=0D0D0D&color=00ffff&size=256&bold=true";
+
 const POLYGON_CHAIN_ID = 137; // Polygon Mainnet Decimal
 
 const App: React.FC = () => {
@@ -102,7 +104,8 @@ const App: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
-  const [activeReferrer, setActiveReferrer] = useState<string>(ethers.ZeroAddress);
+  const [activeReferrer, setActiveReferrer] = useState<string>(localStorage.getItem("aigods_referrer") || ethers.ZeroAddress);
+  const [currentUserReferrals, setCurrentUserReferrals] = useState<number>(0);
 
   // Social Task States
   const [taskTwitter, setTaskTwitter] = useState(false);
@@ -123,6 +126,12 @@ const App: React.FC = () => {
     'SOL': 150,
     'MATIC': 0.70,
     'USD': 1
+  };
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const target = e.target as HTMLImageElement;
+    target.onerror = null;
+    target.src = LOGO_FALLBACK;
   };
 
   const calculatedTokens = useMemo(() => {
@@ -158,6 +167,10 @@ const App: React.FC = () => {
           lastSeen: new Date().toISOString(),
           lastAction: 0
         });
+        setCurrentUserReferrals(0);
+      } else {
+        const data = snap.data();
+        setCurrentUserReferrals(data?.referrals || 0);
       }
     } catch (err: any) {
       console.error("Firestore error in ensureUserRecord:", err?.message || err);
@@ -224,15 +237,59 @@ const App: React.FC = () => {
     return provider;
   };
 
-  // CHECK URL FOR REFERRER
+  // PERSISTENT REFERRAL DETECTION
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const ref = params.get('ref');
-    if (ref && ethers.isAddress(ref)) {
-      setActiveReferrer(ref);
-      console.log("Active Referrer Detected:", ref);
+    const refParam = params.get('ref');
+    
+    if (refParam && ethers.isAddress(refParam)) {
+      console.log("CRITICAL: Referral Detected in URL:", refParam);
+      localStorage.setItem("aigods_referrer", refParam);
+      setActiveReferrer(refParam);
+    } else {
+      const stored = localStorage.getItem("aigods_referrer");
+      if (stored && ethers.isAddress(stored)) {
+        console.log("CRITICAL: Referral Retrieved from Persistent Storage:", stored);
+        setActiveReferrer(stored);
+      } else {
+        console.log("CRITICAL: No active referral detected.");
+      }
     }
   }, []);
+
+  // Update logic helper for referral increments
+  const recordReferralIncrement = async (buyer: string, referrer: string, amount: string | number) => {
+    if (!referrer || referrer === ethers.ZeroAddress || referrer.toLowerCase() === buyer.toLowerCase()) {
+      console.log("DEBUG: Skipping referral update - Invalid referrer or self-referral.");
+      return;
+    }
+
+    try {
+      console.log("DEBUG: Initiating Referral Update for referrer:", referrer);
+      const referrerRef = doc(db, "users", referrer);
+      const buyerRecordRef = doc(db, "referrals", referrer, "buyers", buyer);
+      
+      const recordSnap = await getDoc(buyerRecordRef);
+      if (!recordSnap.exists()) {
+        // Record unique referral
+        await setDoc(buyerRecordRef, {
+          buyer: buyer,
+          amount: amount,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Atomic increment of leaderboard count
+        await updateDoc(referrerRef, {
+          referrals: increment(1)
+        });
+        console.log("SUCCESS: Leaderboard referral count incremented for", referrer);
+      } else {
+        console.log("DEBUG: Referrer already credited for this user (unique referral only).");
+      }
+    } catch (err: any) {
+      console.error("ERROR: Referral Persistence Update Failed:", err.message);
+    }
+  };
 
   const handleClaimAirdrop = async () => {
     if (!connectedAddress) {
@@ -264,14 +321,12 @@ const App: React.FC = () => {
     }
 
     try {
-      // SMART CONTRACT CALL
       let provider = new ethers.BrowserProvider((window as any).ethereum);
       provider = await ensurePolygonNetwork(provider);
       
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(PROXY_CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
-      // Check on-chain first
       const hasClaimedOnChain = await contract.hasClaimedAirdrop(connectedAddress);
       if (hasClaimedOnChain) {
         alert('You have already claimed your airdrop on-chain!');
@@ -281,18 +336,16 @@ const App: React.FC = () => {
 
       alert('Please confirm the Airdrop Claim in your wallet...');
       const tx = await contract.claimAirdrop();
-      console.log("Claim Tx Sent:", tx.hash);
-      
-      // Wait for receipt confirmation
       const receipt = await tx.wait();
       
       if (receipt && receipt.status === 1) {
-        // FIREBASE UPDATE ON SUCCESS
         const userRef = doc(db, "users", connectedAddress);
         await updateDoc(userRef, {
           airdropClaimed: true,
           tokens: increment(100)
         });
+        
+        // Log to feed
         await addDoc(collection(db, "feed"), {
           wallet: connectedAddress,
           type: 'airdrop',
@@ -300,15 +353,16 @@ const App: React.FC = () => {
           time: new Date().toISOString()
         });
 
+        // REFERRAL HOOK FOR AIRDROP
+        console.log("DEBUG: Using referrer during airdrop claim:", activeReferrer);
+        await recordReferralIncrement(connectedAddress, activeReferrer, "Airdrop Claim");
+
         setClaimedWallets(prev => new Set(prev).add(connectedAddress.toLowerCase()));
-        alert(`AIRDROP SUCCESS! 100 AIGODS have been allocated to your profile. Tx: ${tx.hash}`);
-      } else {
-        alert("Transaction failed on the blockchain. Please try again.");
+        alert(`AIRDROP SUCCESS! 100 AIGODS have been allocated. Tx: ${tx.hash}`);
       }
     } catch (err: any) {
       console.error("Claim error:", err);
-      const errorMessage = err.reason || err.message || "Transaction failed";
-      alert(`Claim failed: ${errorMessage}`);
+      alert(`Claim failed: ${err.reason || err.message}`);
     }
   };
 
@@ -333,7 +387,8 @@ const App: React.FC = () => {
 
       alert(`Confirming presale transaction for ${maticAmount} MATIC...`);
       
-      // Pass detected referrer or ZeroAddress
+      // Use activeReferrer from persistent storage
+      console.log("DEBUG: Using referrer during purchase:", activeReferrer);
       const tx = await contract.buyPreSale(
         activeReferrer || ethers.ZeroAddress,
         {
@@ -341,40 +396,13 @@ const App: React.FC = () => {
         }
       );
 
-      console.log("Buy Tx Sent:", tx.hash);
-      alert("Transaction processing... please wait for confirmation.");
-      
       const receipt = await tx.wait();
       
       if (receipt && receipt.status === 1) {
-        // 1. Handle Referrer Update in Firebase
-        if (activeReferrer && activeReferrer !== ethers.ZeroAddress && activeReferrer.toLowerCase() !== connectedAddress.toLowerCase()) {
-           try {
-             const referrerRef = doc(db, "users", activeReferrer);
-             // Unique path: referrals/{referrerWallet}/buyers/{buyerWallet}
-             const buyerRecordRef = doc(db, "referrals", activeReferrer, "buyers", connectedAddress);
-             
-             // Check if already referred to prevent multiple increments for the same buyer
-             const recordSnap = await getDoc(buyerRecordRef);
-             if (!recordSnap.exists()) {
-               await setDoc(buyerRecordRef, {
-                 buyer: connectedAddress,
-                 amount: maticAmount,
-                 timestamp: new Date().toISOString()
-               });
-               
-               // Increment atomic counter
-               await updateDoc(referrerRef, {
-                 referrals: increment(1)
-               });
-               console.log("SUCCESS: Referral tracking updated in Firebase for", activeReferrer);
-             }
-           } catch (fErr: any) {
-             console.error("Firebase Referral Error:", fErr.message);
-           }
-        }
+        // RECORD REFERRAL SUCCESS
+        await recordReferralIncrement(connectedAddress, activeReferrer, maticAmount);
 
-        // 2. Update Live Feed
+        // Update Live Feed
         try {
           await addDoc(collection(db, "feed"), {
             wallet: connectedAddress,
@@ -388,13 +416,10 @@ const App: React.FC = () => {
 
         alert(`Presale purchase successful! Tx: ${tx.hash}`);
         setBuyInput("");
-      } else {
-        alert("Transaction failed on the blockchain. Please check PolygonScan.");
       }
     } catch (err: any) {
       console.error("Buy error:", err);
-      const errorMessage = err.reason || err.message || "Transaction failed";
-      alert(`Transaction failed: ${errorMessage}`);
+      alert(`Transaction failed: ${err.reason || err.message}`);
     }
   };
 
@@ -429,12 +454,24 @@ const App: React.FC = () => {
     }
   }, [isChallengeModalOpen]);
 
+  // Sync personal referral count on connection or modal open
+  useEffect(() => {
+    if (connectedAddress) {
+       const userRef = doc(db, "users", connectedAddress);
+       const unsub = onSnapshot(userRef, (snap) => {
+         if (snap.exists()) {
+           setCurrentUserReferrals(snap.data().referrals || 0);
+         }
+       });
+       return () => unsub();
+    }
+  }, [connectedAddress]);
+
   const connectWallet = async (walletName: string) => {
     setIsConnecting(true);
     if ((window as any).ethereum) {
       try {
         let provider = new ethers.BrowserProvider((window as any).ethereum);
-        // Prompt network switch on connect
         provider = await ensurePolygonNetwork(provider);
         
         const accounts = await provider.send("eth_requestAccounts", []);
@@ -446,12 +483,9 @@ const App: React.FC = () => {
         
         ensureUserRecord(address);
         setIsWalletModalOpen(false);
-        console.log("Wallet connected:", address);
       } catch (err: any) {
         console.error("Wallet error:", err?.message || err);
-        if (err.message && err.message.includes("Polygon")) {
-          alert(err.message);
-        }
+        alert(err.message);
       } finally {
         setIsConnecting(false);
       }
@@ -485,15 +519,12 @@ const App: React.FC = () => {
   };
 
   const userReferrals = useMemo(() => {
-    if (!connectedAddress) return 0;
-    const user = leaderboardData.find(u => u.address.toLowerCase() === connectedAddress.toLowerCase());
-    return user?.referrals || 0;
-  }, [connectedAddress, leaderboardData]);
+    return currentUserReferrals;
+  }, [currentUserReferrals]);
 
   return (
     <div className="min-h-screen w-full relative flex flex-col items-center bg-black overflow-x-hidden pb-10 font-inter text-white">
       <ParticleBackground />
-      <ChatAssistant logoUrl={AIGODS_LOGO_URL} />
 
       {/* 1. TOP NAVIGATION HEADER */}
       <div className="top-nav-fixed w-full flex items-center justify-between px-4 md:px-10 py-6 z-[50]">
@@ -510,7 +541,7 @@ const App: React.FC = () => {
           </button>
           <button 
             onClick={() => setIsWhitepaperOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 md:px-8 md:py-4 border-2 border-blue-500/60 rounded-xl bg-blue-500/10 text-[9px] md:text-sm font-black uppercase tracking-widest text-blue-400 hover:bg-blue-500/20 transition-all animate-dim-light-blue shadow-[0_0_20px_rgba(0,255,255,0.15)]"
+            className="flex items-center gap-2 px-4 py-2 md:px-8 md:py-4 border-2 border-blue-500/60 rounded-xl bg-blue-500/10 text-[9px] md:text-sm font-black uppercase tracking-widest text-blue-400 hover:bg-blue-500/20 transition-all animate-dim-light-blue shadow-[0_0_20px_rgba(255,255,255,0.15)]"
           >
             <FileText size={14} className="md:w-4 md:h-4" />
             <span className="hidden sm:inline">White Paper</span>
@@ -523,15 +554,26 @@ const App: React.FC = () => {
             onClick={() => setIsChallengeModalOpen(true)}
             className="flex items-center gap-2 px-3 py-2 md:px-8 md:py-2.5 bg-gradient-to-r from-blue-700 to-blue-500 rounded-full text-[8px] md:text-[11px] font-black uppercase tracking-tight text-white shadow-lg shadow-blue-500/30 hover:scale-105 transition-all animate-dim-light-blue"
           >
-            <img src={AIGODS_LOGO_URL} className="w-3 h-3 md:w-4 md:h-4 rounded-full" alt="icon" />
+            <img 
+              src={AIGODS_LOGO_URL} 
+              className="w-3 h-3 md:w-4 md:h-4 rounded-full" 
+              alt="icon" 
+              style={{ display: 'block', visibility: 'visible', opacity: 1 }}
+              onError={handleImageError}
+            />
             <span className="hidden sm:inline">REFERRAL REWARDS CHALLENGE</span>
             <span className="sm:hidden">REWARDS</span>
           </button>
         </div>
 
-        {/* LOGO PERMANENTLY VISIBLE IN HEADER */}
         <div className="block">
-           <img src={AIGODS_LOGO_URL} className="w-10 h-10 md:w-16 md:h-16 rounded-full border-2 border-white/20 animate-coin-rotate-y animate-dim-light-blue shadow-[0_0_20px_rgba(255,255,255,0.1)]" alt="logo" />
+           <img 
+             src={AIGODS_LOGO_URL} 
+             className="w-10 h-10 md:w-16 md:h-16 rounded-full border-2 border-white/20 animate-coin-rotate-y animate-dim-light-blue shadow-[0_0_20px_rgba(255,255,255,0.1)]" 
+             alt="logo" 
+             style={{ display: 'block', visibility: 'visible', opacity: 1 }}
+             onError={handleImageError}
+           />
         </div>
       </div>
 
@@ -618,10 +660,20 @@ const App: React.FC = () => {
           <div className="coin-3d">
             <div className="coin-edge"></div>
             <div className="coin-face coin-face-front">
-              <img src={AIGODS_LOGO_URL} alt="AIGODS Front" />
+              <img 
+                src={AIGODS_LOGO_URL} 
+                alt="AIGODS Front" 
+                style={{ display: 'block', visibility: 'visible', opacity: 1, width: '100%', height: '100%' }}
+                onError={handleImageError}
+              />
             </div>
             <div className="coin-face coin-face-back">
-              <img src={AIGODS_LOGO_URL} alt="AIGODS Back" />
+              <img 
+                src={AIGODS_LOGO_URL} 
+                alt="AIGODS Back" 
+                style={{ display: 'block', visibility: 'visible', opacity: 1, width: '100%', height: '100%' }}
+                onError={handleImageError}
+              />
             </div>
           </div>
         </div>
@@ -898,17 +950,8 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* FIRE AVATAR - BOTTOM RIGHT */}
-      <div className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[40] w-20 h-20 md:w-48 md:h-48 rounded-full border-2 md:border-4 border-cyan-400/30 overflow-hidden shadow-2xl shadow-cyan-500/20 group cursor-pointer hover:scale-110 transition-all">
-         <img 
-           src={AIGODS_LOGO_URL} 
-           alt="AI GOD" 
-           className="w-full h-full object-cover group-hover:scale-125 transition-all duration-700"
-           onError={(e) => {
-             (e.target as HTMLImageElement).src = AIGODS_LOGO_URL;
-           }}
-         />
-      </div>
+      {/* CHAT ASSISTANT */}
+      <ChatAssistant logoUrl={AIGODS_LOGO_URL} />
 
       {/* CHALLENGE MODAL */}
       {isChallengeModalOpen && (
@@ -1162,7 +1205,13 @@ const App: React.FC = () => {
           <div className="relative w-full max-w-[440px] bg-[#0a0a14] border border-white/10 rounded-[2.5rem] p-6 md:p-10 shadow-[0_0_120px_rgba(0,0,0,1)] flex flex-col items-center animate-fade-in">
              <div className="relative w-20 h-20 md:w-28 md:h-28 mb-8 flex items-center justify-center">
                <div className="absolute inset-0 bg-cyan-500/30 rounded-full blur-2xl animate-pulse"></div>
-               <img src={AIGODS_LOGO_URL} className="relative w-full h-full rounded-full border-2 border-cyan-400/50 shadow-2xl z-10 animate-coin-rotate-y" alt="logo" />
+               <img 
+                 src={AIGODS_LOGO_URL} 
+                 className="relative w-full h-full rounded-full border-2 border-cyan-400/50 shadow-2xl z-10 animate-coin-rotate-y" 
+                 alt="logo" 
+                 style={{ display: 'block', visibility: 'visible', opacity: 1 }}
+                 onError={handleImageError}
+               />
              </div>
              
              <div className="w-full flex items-center justify-between mb-8">
@@ -1220,7 +1269,12 @@ const App: React.FC = () => {
              <div className="flex-1 overflow-y-auto scrollbar-hide px-4 md:px-12 py-6 md:py-10">
                  <div className="flex items-center justify-between mb-10">
                     <div className="flex items-center gap-4">
-                      <img src={AIGODS_LOGO_URL} className="w-12 h-12 md:w-20 md:h-20 rounded-full border border-white/10 shadow-2xl" />
+                      <img 
+                        src={AIGODS_LOGO_URL} 
+                        className="w-12 h-12 md:w-20 md:h-20 rounded-full border border-white/10 shadow-2xl" 
+                        style={{ display: 'block', visibility: 'visible', opacity: 1 }}
+                        onError={handleImageError}
+                      />
                       <div>
                         <h2 className="text-lg md:text-3xl font-black italic text-white uppercase leading-none">AI GODS (AIGODS)</h2>
                         <span className="text-[7px] md:text-[9px] font-black text-cyan-400 uppercase tracking-[0.3em] mt-1 block">PRE-SALE & AIRDROP WHITEPAPER</span>
@@ -1240,6 +1294,8 @@ const App: React.FC = () => {
                       src={AIGODS_LOGO_URL} 
                       alt="The Titan" 
                       className="w-full aspect-[16/9] object-cover"
+                      style={{ display: 'block', visibility: 'visible', opacity: 1 }}
+                      onError={handleImageError}
                     />
                  </div>
                  <p className="text-center text-[7px] md:text-[8px] font-black text-gray-600 uppercase tracking-[0.4em] mb-12">

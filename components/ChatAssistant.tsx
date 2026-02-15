@@ -42,6 +42,12 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
   const nextStartTimeRef = useRef(0);
   const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
 
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const target = e.target as HTMLImageElement;
+    target.onerror = null;
+    target.src = "https://ui-avatars.com/api/?name=AIGODS&background=0D0D0D&color=00ffff&size=256&bold=true";
+  };
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -178,7 +184,13 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
         <button onClick={() => {setIsOpen(true); setIsMinimized(false);}} className="relative w-24 h-24 md:w-32 md:h-32 group hover:scale-110 transition-all cursor-pointer">
           <div className="absolute inset-0 bg-cyan-500/30 rounded-full blur-2xl animate-pulse"></div>
           <div className="relative w-full h-full rounded-full border-4 border-cyan-400 bg-[#0a0a0f] flex items-center justify-center overflow-hidden">
-            <img src={logoUrl} alt="AI Assistant" className="w-full h-full object-cover" />
+            <img 
+              src={logoUrl} 
+              alt="AI Assistant" 
+              className="w-full h-full object-cover" 
+              style={{ display: 'block', visibility: 'visible', opacity: 1 }}
+              onError={handleImageError}
+            />
           </div>
         </button>
       )}
@@ -187,7 +199,14 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
         <div className={`flex flex-col bg-[#050508] border border-gray-800 rounded-[3rem] shadow-2xl overflow-hidden transition-all ${isFullScreen ? 'fixed inset-4' : isMinimized ? 'h-20 w-80' : 'w-[90vw] md:w-[480px] h-[75vh]'}`}>
           <div className="p-6 bg-gray-900/60 border-b border-gray-800 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-full border-2 border-cyan-400 overflow-hidden"><img src={logoUrl} className="w-full h-full object-cover" /></div>
+              <div className="w-10 h-10 rounded-full border-2 border-cyan-400 overflow-hidden">
+                <img 
+                  src={logoUrl} 
+                  className="w-full h-full object-cover" 
+                  style={{ display: 'block', visibility: 'visible', opacity: 1 }}
+                  onError={handleImageError}
+                />
+              </div>
               <h4 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-2">AIGODS AI <Sparkles size={12} /></h4>
             </div>
             <div className="flex gap-2 text-white">

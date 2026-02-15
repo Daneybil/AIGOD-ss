@@ -1,7 +1,14 @@
+
 import React from 'react';
 import { AIGODS_LOGO_URL } from '../constants.ts';
 
 const ParticleBackground: React.FC = () => {
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const target = e.target as HTMLImageElement;
+    target.onerror = null;
+    target.src = "https://ui-avatars.com/api/?name=AIGODS&background=0D0D0D&color=00ffff&size=128&bold=true";
+  };
+
   return (
     <div className="fixed inset-0 -z-20 overflow-hidden pointer-events-none bg-[#0b0b0f]">
       <div 
@@ -9,7 +16,9 @@ const ParticleBackground: React.FC = () => {
         style={{ 
           backgroundImage: `url('${AIGODS_LOGO_URL}')`,
           backgroundSize: 'contain',
-          filter: 'brightness(0.4) contrast(1.2)'
+          filter: 'brightness(0.4) contrast(1.2)',
+          display: 'block',
+          visibility: 'visible'
         }}
       />
       
@@ -39,7 +48,9 @@ const ParticleBackground: React.FC = () => {
                 <img 
                   src={AIGODS_LOGO_URL} 
                   alt="Gods Logo" 
-                  className="w-full h-full object-cover grayscale brightness-50" 
+                  className="w-full h-full object-cover grayscale brightness-50"
+                  style={{ display: 'block', visibility: 'visible', opacity: 1 }}
+                  onError={handleImageError}
                 />
               </div>
             </div>
