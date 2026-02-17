@@ -187,23 +187,24 @@ const App: React.FC = () => {
       
       const addresses: string[] = await contract.getLeaderboard();
       const combinedData = await Promise.all(addresses.map(async (addr) => {
-        const refInfo = await contract.referrals(addr);
-        return {
-          address: addr,
-          referrals: Number(refInfo.referralCount) || 0,
-          lastUpdated: Number(refInfo.lastUpdated)
-        };
+        try {
+          const refInfo = await contract.referrals(addr);
+          return {
+            address: addr,
+            referrals: Number(refInfo.referralCount) || 0,
+            lastUpdated: Number(refInfo.lastUpdated)
+          };
+        } catch (e) {
+          return { address: addr, referrals: 0, lastUpdated: 0 };
+        }
       }));
 
       // Sort by referrals descending
       const sortedData = combinedData.sort((a, b) => b.referrals - a.referrals);
       setLeaderboardData(sortedData);
-
-      // Fallback/Parallel Sync with Firebase for cached/extended info if needed
-      // (Optional: Could merge Firebase avatars/names here if exist)
     } catch (err: any) {
       console.error("Leaderboard Blockchain Error:", err?.message || err);
-      // Fallback to Firebase if blockchain fetch fails
+      // Fallback only if blockchain fetch fails
       try {
         const q = query(collection(db, "users"), orderBy("referrals", "desc"), limit(10));
         const querySnapshot = await getDocs(q);
@@ -219,6 +220,15 @@ const App: React.FC = () => {
       setIsLeaderboardLoading(false);
     }
   };
+
+  // Auto-refresh leaderboard every 5 seconds
+  useEffect(() => {
+    loadLeaderboard();
+    const interval = setInterval(() => {
+      loadLeaderboard();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Helper to ensure user is on Polygon Mainnet
   const ensurePolygonNetwork = async (provider: ethers.BrowserProvider) => {
@@ -275,7 +285,6 @@ const App: React.FC = () => {
         console.log("CRITICAL: No active referral detected.");
       }
     }
-    loadLeaderboard();
   }, []);
 
   // Update logic helper for referral increments
@@ -356,9 +365,9 @@ const App: React.FC = () => {
       // Wait for confirmation
       const receipt = await tx.wait();
 
-      // Success check
+      // Success check - FIXED LOGIC AS REQUESTED
       if (receipt && receipt.status === 1) {
-        alert("✅ Airdrop Successfully Claimed!");
+        alert("✅ Airdrop successfully claimed");
         
         // Database updates
         try {
@@ -378,7 +387,7 @@ const App: React.FC = () => {
           console.warn("Local DB sync issue:", dbErr);
         }
       } else {
-        alert("❌ Airdrop transaction failed on-chain.");
+        alert("❌ Airdrop transaction failed. On-chain execution reverted.");
       }
 
     } catch (error: any) {
@@ -386,7 +395,8 @@ const App: React.FC = () => {
       if (error.code === 4001) {
         alert("Claim rejected by user.");
       } else {
-        alert("Something went wrong with the claim. Ensure you have MATIC for gas.");
+        const revertReason = error.reason || error.message || "An unexpected error occurred.";
+        alert(`Claim failed: ${revertReason}`);
       }
     }
   };
@@ -426,6 +436,15 @@ const App: React.FC = () => {
       if (receipt && receipt.status === 1) {
         alert("✅ Purchase Successful!");
         
+        // Trigger registerReferral after successful purchase confirmation
+        try {
+          console.log("DEBUG: Triggering registerReferral on-chain...");
+          const regTx = await contract.registerReferral(activeReferrer || ethers.ZeroAddress, connectedAddress);
+          await regTx.wait();
+        } catch (regErr: any) {
+          console.log("Referral registration on-chain failed or redundant:", regErr.message);
+        }
+
         // RECORD REFERRAL SUCCESS
         await recordReferralIncrement(connectedAddress, activeReferrer, maticAmount);
 
@@ -451,7 +470,8 @@ const App: React.FC = () => {
       if (err.code === 4001) {
         alert("Transaction rejected by user.");
       } else {
-        alert(`Transaction failed: ${err.reason || err.message}`);
+        const revertReason = err.reason || err.message || "An unexpected error occurred.";
+        alert(`Transaction failed: ${revertReason}`);
       }
     }
   };
