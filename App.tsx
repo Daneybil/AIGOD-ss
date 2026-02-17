@@ -181,19 +181,39 @@ const App: React.FC = () => {
     setFirebaseError(null);
     setIsLeaderboardLoading(true);
     try {
-      const q = query(collection(db, "users"), orderBy("referrals", "desc"), limit(10));
-      const querySnapshot = await getDocs(q);
-      const data: any[] = [];
-      querySnapshot.forEach((doc: any) => {
-        data.push({ address: doc.id, ...doc.data() });
-      });
-      setLeaderboardData(data);
+      // Integration Update: Pull data directly from Proxy Contract getLeaderboard()
+      const provider = new ethers.JsonRpcProvider("https://polygon-rpc.com/");
+      const contract = new ethers.Contract(PROXY_CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+      
+      const addresses: string[] = await contract.getLeaderboard();
+      const combinedData = await Promise.all(addresses.map(async (addr) => {
+        const refInfo = await contract.referrals(addr);
+        return {
+          address: addr,
+          referrals: Number(refInfo.referralCount) || 0,
+          lastUpdated: Number(refInfo.lastUpdated)
+        };
+      }));
+
+      // Sort by referrals descending
+      const sortedData = combinedData.sort((a, b) => b.referrals - a.referrals);
+      setLeaderboardData(sortedData);
+
+      // Fallback/Parallel Sync with Firebase for cached/extended info if needed
+      // (Optional: Could merge Firebase avatars/names here if exist)
     } catch (err: any) {
-      console.error("Leaderboard error:", err?.message || err);
-      if (err.message && err.message.includes("offline")) {
-        setFirebaseError("Connection currently unavailable. Showing cached data if possible.");
-      } else {
-        setFirebaseError("Leaderboard access restricted. Please try again later.");
+      console.error("Leaderboard Blockchain Error:", err?.message || err);
+      // Fallback to Firebase if blockchain fetch fails
+      try {
+        const q = query(collection(db, "users"), orderBy("referrals", "desc"), limit(10));
+        const querySnapshot = await getDocs(q);
+        const data: any[] = [];
+        querySnapshot.forEach((doc: any) => {
+          data.push({ address: doc.id, ...doc.data() });
+        });
+        setLeaderboardData(data);
+      } catch (fbErr) {
+        setFirebaseError("Failed to synchronize leaderboard data.");
       }
     } finally {
       setIsLeaderboardLoading(false);
@@ -255,6 +275,7 @@ const App: React.FC = () => {
         console.log("CRITICAL: No active referral detected.");
       }
     }
+    loadLeaderboard();
   }, []);
 
   // Update logic helper for referral increments
@@ -278,91 +299,95 @@ const App: React.FC = () => {
           timestamp: new Date().toISOString()
         });
         
-        // Atomic increment of leaderboard count
+        // Atomic increment of leaderboard count in FB (UI Sync)
         await updateDoc(referrerRef, {
           referrals: increment(1)
         });
-        console.log("SUCCESS: Leaderboard referral count incremented for", referrer);
-      } else {
-        console.log("DEBUG: Referrer already credited for this user (unique referral only).");
+        console.log("SUCCESS: Leaderboard referral count updated for", referrer);
       }
+      // Re-trigger contract fetch to show real-time rankings
+      loadLeaderboard();
     } catch (err: any) {
       console.error("ERROR: Referral Persistence Update Failed:", err.message);
     }
   };
 
   const handleClaimAirdrop = async () => {
-    if (!connectedAddress) {
-      setIsWalletModalOpen(true);
-      return;
-    }
-
-    // MANDATORY SOCIAL REDIRECTION LOGIC
-    if (!taskTwitter) {
-      window.open('https://x.com/AIGODSCOIN', '_blank');
-      alert('FOLLOW REQUIRED: Please follow us on Twitter/X to unlock your claim!');
-      return;
-    }
-    if (!taskTelegram) {
-      window.open('https://t.me/AIGODSCOINOFFICIAL', '_blank');
-      setTimeout(() => { window.open('https://t.me/AIGODSCOIN', '_blank'); }, 1000);
-      alert('JOIN REQUIRED: Please join our Telegram Official Channel and Chat Group to unlock your claim!');
-      return;
-    }
-    if (!taskYoutube) {
-      window.open('https://www.youtube.com/@AIGODSCOINOFFICIAL', '_blank');
-      alert('SUBSCRIBE REQUIRED: Please subscribe to our YouTube channel to unlock your claim!');
-      return;
-    }
-
-    if (claimedWallets.has(connectedAddress.toLowerCase())) {
-      alert('Airdrop already claimed for this wallet!');
-      return;
-    }
-
     try {
-      let provider = new ethers.BrowserProvider((window as any).ethereum);
-      provider = await ensurePolygonNetwork(provider);
-      
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(PROXY_CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-
-      const hasClaimedOnChain = await contract.hasClaimedAirdrop(connectedAddress);
-      if (hasClaimedOnChain) {
-        alert('You have already claimed your airdrop on-chain!');
-        setClaimedWallets(prev => new Set(prev).add(connectedAddress.toLowerCase()));
+      if (!(window as any).ethereum) {
+        alert("Wallet not found");
         return;
       }
 
-      alert('Please confirm the Airdrop Claim in your wallet...');
-      const tx = await contract.claimAirdrop();
-      const receipt = await tx.wait();
-      
-      if (receipt && receipt.status === 1) {
-        const userRef = doc(db, "users", connectedAddress);
-        await updateDoc(userRef, {
-          airdropClaimed: true,
-          tokens: increment(100)
-        });
-        
-        // Log to feed
-        await addDoc(collection(db, "feed"), {
-          wallet: connectedAddress,
-          type: 'airdrop',
-          amount: 100,
-          time: new Date().toISOString()
-        });
-
-        // REFERRAL HOOK FOR AIRDROP
-        console.log("DEBUG: Using referrer during airdrop claim:", activeReferrer);
-        await recordReferralIncrement(connectedAddress, activeReferrer, "Airdrop Claim");
-
-        setClaimedWallets(prev => new Set(prev).add(connectedAddress.toLowerCase()));
-        alert(`AIRDROP SUCCESS! 100 AIGODS have been allocated. Tx: ${tx.hash}`);
+      // MANDATORY SOCIAL REDIRECTION LOGIC
+      if (!taskTwitter) {
+        window.open('https://x.com/AIGODSCOIN', '_blank');
+        alert('FOLLOW REQUIRED: Please follow us on Twitter/X to unlock your claim!');
+        return;
       }
-    } catch (err: any) {
-      console.error("Claim error:", err);
-      alert(`Claim failed: ${err.reason || err.message}`);
+      if (!taskTelegram) {
+        window.open('https://t.me/AIGODSCOINOFFICIAL', '_blank');
+        setTimeout(() => { window.open('https://t.me/AIGODSCOIN', '_blank'); }, 1000);
+        alert('JOIN REQUIRED: Please join our Telegram Official Channel and Chat Group to unlock your claim!');
+        return;
+      }
+      if (!taskYoutube) {
+        window.open('https://www.youtube.com/@AIGODSCOINOFFICIAL', '_blank');
+        alert('SUBSCRIBE REQUIRED: Please subscribe to our YouTube channel to unlock your claim!');
+        return;
+      }
+
+      const provider = new ethers.BrowserProvider((window as any).ethereum);
+      const signer = await provider.getSigner();
+
+      const contract = new ethers.Contract(
+        PROXY_CONTRACT_ADDRESS,
+        CONTRACT_ABI,
+        signer
+      );
+
+      // Send transaction
+      alert("Airdrop request sent to wallet. Please confirm...");
+      const tx = await contract.claimAirdrop();
+
+      // Pending message
+      alert("Transaction broadcasted. Waiting for blockchain confirmation...");
+
+      // Wait for confirmation
+      const receipt = await tx.wait();
+
+      // Success check
+      if (receipt && receipt.status === 1) {
+        alert("✅ Airdrop Successfully Claimed!");
+        
+        // Database updates
+        try {
+          if (connectedAddress) {
+            const userRef = doc(db, "users", connectedAddress);
+            await updateDoc(userRef, { airdropClaimed: true, tokens: increment(100) });
+            await addDoc(collection(db, "feed"), {
+              wallet: connectedAddress,
+              type: 'airdrop',
+              amount: 100,
+              time: new Date().toISOString()
+            });
+            await recordReferralIncrement(connectedAddress, activeReferrer, "Airdrop Claim");
+            setClaimedWallets(prev => new Set(prev).add(connectedAddress.toLowerCase()));
+          }
+        } catch (dbErr) {
+          console.warn("Local DB sync issue:", dbErr);
+        }
+      } else {
+        alert("❌ Airdrop transaction failed on-chain.");
+      }
+
+    } catch (error: any) {
+      console.error("Claim error:", error);
+      if (error.code === 4001) {
+        alert("Claim rejected by user.");
+      } else {
+        alert("Something went wrong with the claim. Ensure you have MATIC for gas.");
+      }
     }
   };
 
@@ -385,20 +410,22 @@ const App: React.FC = () => {
       const signer = await provider.getSigner();
       const contract = new ethers.Contract(PROXY_CONTRACT_ADDRESS, CONTRACT_ABI, signer);
 
-      alert(`Confirming presale transaction for ${maticAmount} MATIC...`);
+      alert(`Confirming transaction for ${maticAmount} MATIC...`);
       
       // Use activeReferrer from persistent storage
-      console.log("DEBUG: Using referrer during purchase:", activeReferrer);
       const tx = await contract.buyPreSale(
         activeReferrer || ethers.ZeroAddress,
         {
-          value: ethers.parseEther(maticAmount.toString())
+          value: ethers.parseUnits(maticAmount.toString(), "ether")
         }
       );
 
+      alert("Transaction sent. Waiting for blockchain confirmation...");
       const receipt = await tx.wait();
       
       if (receipt && receipt.status === 1) {
+        alert("✅ Purchase Successful!");
+        
         // RECORD REFERRAL SUCCESS
         await recordReferralIncrement(connectedAddress, activeReferrer, maticAmount);
 
@@ -414,28 +441,25 @@ const App: React.FC = () => {
           console.error("Feed error:", feedErr);
         }
 
-        alert(`Presale purchase successful! Tx: ${tx.hash}`);
         setBuyInput("");
+        loadLeaderboard(); // Refresh standings
+      } else {
+        alert("❌ Transaction failed on-chain.");
       }
     } catch (err: any) {
       console.error("Buy error:", err);
-      alert(`Transaction failed: ${err.reason || err.message}`);
+      if (err.code === 4001) {
+        alert("Transaction rejected by user.");
+      } else {
+        alert(`Transaction failed: ${err.reason || err.message}`);
+      }
     }
   };
 
   useEffect(() => {
     if (isChallengeModalOpen) {
-      const q = query(collection(db, "users"), orderBy("referrals", "desc"), limit(10));
-      const unsubLeaderboard = onSnapshot(q, (snapshot) => {
-        const data: any[] = [];
-        snapshot.forEach((doc) => {
-          data.push({ address: doc.id, ...doc.data() });
-        });
-        setLeaderboardData(data);
-      }, (err) => {
-        console.warn("Live Leaderboard Access Restricted:", err.message);
-      });
-
+      loadLeaderboard();
+      
       const feedQ = query(collection(db, "feed"), orderBy("time", "desc"), limit(15));
       const unsubFeed = onSnapshot(feedQ, (snapshot) => {
         const data: any[] = [];
@@ -444,11 +468,10 @@ const App: React.FC = () => {
         });
         setLiveFeedData(data);
       }, (err) => {
-        console.warn("Live Feed Access Restricted:", err.message);
+        console.warn("Live Feed Restricted:", err.message);
       });
 
       return () => {
-        unsubLeaderboard();
         unsubFeed();
       };
     }
@@ -1089,7 +1112,7 @@ const App: React.FC = () => {
                         [1,2].map(i => (
                           <tr key={i} className="opacity-40">
                             <td className="px-6 py-5"><span className="text-xl md:text-2xl font-black italic text-yellow-400 tracking-tighter">#{i}</span></td>
-                            <td className="px-6 py-5 font-mono text-blue-500 text-[10px] font-black tracking-widest">0x71C...492b</td>
+                            <td className="px-6 py-5 font-mono text-blue-500 text-[10px] font-black tracking-widest">...</td>
                             <td className="px-6 py-5 font-black text-white text-lg italic">0</td>
                             <td className="px-6 py-5"><div className="w-24 h-1.5 bg-gray-800 rounded-full"></div></td>
                             <td className="px-6 py-5 text-right"><span className="text-[10px] font-black text-cyan-400 italic uppercase">{i === 1 ? '👑 CHAMPION' : '🔥 ELITE'}</span></td>
