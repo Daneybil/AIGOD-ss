@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { LOGO_DATA } from '../constants.ts';
 

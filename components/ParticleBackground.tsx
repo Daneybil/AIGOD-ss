@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { AIGODS_LOGO_URL } from '../constants.ts';
 
