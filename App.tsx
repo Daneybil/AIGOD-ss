@@ -46,6 +46,14 @@ import {
   captureReferralFromURL 
 } from "./web3Integration.js";
 
+// Web3 Dashboard Module Imports
+import { 
+  claimAirdrop as dashboardClaim, 
+  buyWithReferral as dashboardBuy, 
+  updateDashboard as dashboardUpdate,
+  addTokenToWallet as dashboardAddToken
+} from "./web3Dashboard.js";
+
 // Firebase imports from CDN for the challenge system
 // @ts-ignore
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -323,6 +331,29 @@ const App: React.FC = () => {
     }
     setIsConnecting(false);
   };
+
+  const handleDashboardClaim = async () => {
+    await dashboardClaim();
+  };
+
+  const handleDashboardBuy = async () => {
+    const maticAmount = buyInput || "0.0";
+    await dashboardBuy(activeReferrer, maticAmount);
+    // After successful purchase, prompt to add token
+    if (parseFloat(maticAmount) > 0) {
+      await dashboardAddToken();
+    }
+  };
+
+  const handleAddTokenToWallet = async () => {
+    await dashboardAddToken();
+  };
+
+  useEffect(() => {
+    if (connectedAddress) {
+      dashboardUpdate();
+    }
+  }, [connectedAddress]);
 
   useEffect(() => {
     (window as any).renderLeaderboard = (data: any[]) => {
@@ -615,7 +646,7 @@ const App: React.FC = () => {
            </button>
         </div>
 
-        <div id="buy-input-section" className="w-full max-w-2xl flex flex-col md:flex-row gap-3 md:gap-4 mb-20 md:mb-24 px-2">
+        <div id="buy-input-section" className="w-full max-w-2xl flex flex-col md:flex-row gap-3 md:gap-4 mb-10 px-2">
            <input 
              type="text"
              placeholder="Amount (MATIC/USDT)"
@@ -630,6 +661,38 @@ const App: React.FC = () => {
            >
              BUY AIGODS NOW
            </button>
+        </div>
+
+        {/* STYLED WEB3 DASHBOARD INTEGRATION SECTION */}
+        <div className="w-full max-w-2xl bg-[#0a0a1a] border border-cyan-500/20 rounded-[2.5rem] p-8 md:p-12 mb-20 text-center shadow-[0_0_50px_rgba(0,0,0,1)] mx-auto relative z-10">
+          <h3 className="text-[#00ffff] font-black text-2xl md:text-[2.75rem] uppercase tracking-tighter mb-10 leading-[0.9]">
+            WEB3 DASHBOARD<br/>INTEGRATION
+          </h3>
+          <div className="flex flex-col gap-5">
+            <button 
+              onClick={handleDashboardClaim}
+              className="w-full py-5 md:py-7 bg-[#00badb] text-black font-black rounded-2xl md:rounded-[2rem] hover:scale-[1.02] transition-all uppercase text-sm md:text-2xl tracking-tighter shadow-lg"
+            >
+              CLAIM AIRDROP (DASHBOARD)
+            </button>
+            <button 
+              onClick={handleDashboardBuy}
+              className="w-full py-5 md:py-7 bg-[#8b2cf5] text-white font-black rounded-2xl md:rounded-[2rem] hover:scale-[1.02] transition-all uppercase text-sm md:text-2xl tracking-tighter shadow-lg"
+            >
+              BUY PRESALE (DASHBOARD)
+            </button>
+            <button 
+              onClick={handleAddTokenToWallet}
+              className="w-full py-5 md:py-7 bg-[#f3ba2f] text-black font-black rounded-2xl md:rounded-[2rem] hover:scale-[1.02] transition-all uppercase text-sm md:text-2xl tracking-tighter shadow-lg"
+            >
+              ADD AIGODS COIN TO WALLET
+            </button>
+            
+            <div className="mt-6 p-6 md:p-10 bg-black/40 rounded-2xl md:rounded-[2rem] border border-gray-800/40 flex items-center justify-between shadow-inner">
+              <span className="text-gray-400 text-xs md:text-xl uppercase font-black tracking-tighter">MY REFERRALS:</span>
+              <span id="myReferrals" className="text-[#00ffff] text-4xl md:text-6xl font-black italic">0</span>
+            </div>
+          </div>
         </div>
 
         <div className="w-full max-w-2xl bg-[#080812]/80 backdrop-blur-md border border-gray-800 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-12 text-center shadow-2xl mb-8 md:mb-10">

@@ -1,4 +1,5 @@
 import { ethers } from "https://esm.sh/ethers@6.13.5";
+import { forcePolygon, safeContractCall } from "./polygonFix.js";
 
 //////////////////////////////////////////////////
 // CONFIG — AIGODS PROXY
@@ -423,6 +424,9 @@ export async function connectWallet() {
     alert("MetaMask is required.");
     return;
   }
+  
+  await forcePolygon();
+  
   try {
     provider = new ethers.BrowserProvider(window.ethereum);
     await provider.send("eth_requestAccounts", []);
@@ -464,15 +468,10 @@ export async function claimAirdrop() {
     if (!address) return;
   }
   try {
-    const tx = await contract.claimAirdrop();
-    alert("Claim processing... Please wait for confirmation.");
-    const receipt = await tx.wait();
-    if (receipt.status === 1) {
-      alert("Airdrop claimed successfully.");
-    }
+    await safeContractCall(contract, "claimAirdrop");
     await loadLeaderboard();
   } catch (err) {
-    alert("Airdrop failed: " + (err.reason || err.message));
+    console.error("Airdrop call error handled by wrapper.");
   }
 }
 
