@@ -1,19 +1,9 @@
-import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.min.js";
+import { ethers } from "https://esm.sh/ethers@6.13.5";
+import { PROXY_CONTRACT_ADDRESS, CONTRACT_ABI } from "./constants.ts";
+import { forcePolygon } from "./polygonFix.js";
 
-//////////////////////////////////////////////////
-// CONFIG — AIGODS PROXY
-//////////////////////////////////////////////////
-
-const CONTRACT_ADDRESS = "0xb0999Bc622085c1C2031D1aDFfe2096EB5Aafda1";
-
-const ABI = [
-  "function buyPreSale(address referrer) payable",
-  "function claimAirdrop() external",
-  "function getReferralCount(address user) view returns (uint256)",
-  "function hasClaimedAirdrop(address user) view returns (bool)",
-  "function balanceOf(address account) view returns (uint256)",
-  "function decimals() view returns (uint8)"
-];
+const CONTRACT_ADDRESS = PROXY_CONTRACT_ADDRESS;
+const ABI = CONTRACT_ABI;
 
 // Firebase configuration from your project
 const firebaseConfig = {
@@ -56,6 +46,7 @@ export async function connectWallet() {
   }
 
   try {
+    await forcePolygon();
     await window.ethereum.request({ method: "eth_requestAccounts" });
 
     const provider = new ethers.BrowserProvider(window.ethereum);
@@ -87,7 +78,10 @@ export async function buyWithReferral(referrer, ethAmount) {
 
     const tx = await contract.buyPreSale(
       ref,
-      { value: ethers.parseEther(ethAmount.toString()) }
+      { 
+        value: ethers.parseEther(ethAmount.toString()),
+        gasLimit: 500000
+      }
     );
 
     await tx.wait();
@@ -133,7 +127,9 @@ export async function claimAirdrop() {
       return;
     }
 
-    const tx = await contract.claimAirdrop();
+    const tx = await contract.claimAirdrop({
+      gasLimit: 300000
+    });
     alert("Transaction sent... Waiting for confirmation.");
     await tx.wait();
 

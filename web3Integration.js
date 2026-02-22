@@ -1,21 +1,9 @@
 import { ethers } from "https://esm.sh/ethers@6.13.5";
 import { forcePolygon, safeContractCall } from "./polygonFix.js";
+import { PROXY_CONTRACT_ADDRESS, CONTRACT_ABI } from "./constants.ts";
 
-//////////////////////////////////////////////////
-// CONFIG — AIGODS PROXY
-//////////////////////////////////////////////////
-
-const PROXY_ADDRESS = "0xb0999Bc622085c1C2031D1aDFfe2096EB5Aafda1";
-
-const ABI = [
-  "function buyPreSale(address referrer) payable",
-  "function claimAirdrop() external",
-  "function getTopReferrers() view returns (address[], uint256[])",
-  "function getReferralCount(address user) view returns (uint256)",
-  "function hasClaimedAirdrop(address user) view returns (bool)",
-  "function balanceOf(address account) view returns (uint256)",
-  "function decimals() view returns (uint8)"
-];
+const PROXY_ADDRESS = PROXY_CONTRACT_ADDRESS;
+const ABI = CONTRACT_ABI;
 
 let provider = null;
 let signer = null;
@@ -35,7 +23,6 @@ export async function connectWallet() {
     signer = await provider.getSigner();
     contract = new ethers.Contract(PROXY_ADDRESS, ABI, signer);
     const address = await signer.getAddress();
-    await autoRegisterReferral(address);
     await loadLeaderboard();
     return address;
   } catch (err) {
@@ -52,18 +39,6 @@ export function captureReferralFromURL() {
   }
 }
 
-async function autoRegisterReferral(user) {
-  const referrer = localStorage.getItem("aigods_referrer");
-  if (!referrer || !contract) return;
-  if (referrer.toLowerCase() === user.toLowerCase()) return;
-  try {
-    const tx = await contract.registerReferral(referrer, user);
-    await tx.wait();
-  } catch (e) {
-    console.warn("Auto-registration failed or redundant:", e.message);
-  }
-}
-
 export async function claimAirdrop() {
   if (!contract) {
     const address = await connectWallet();
@@ -76,7 +51,9 @@ export async function claimAirdrop() {
       alert("Airdrop already claimed.");
       return;
     }
-    const tx = await contract.claimAirdrop();
+    const tx = await contract.claimAirdrop({
+      gasLimit: 300000 // Explicit gas limit for Polygon
+    });
     alert("Transaction sent... Waiting for confirmation.");
     await tx.wait();
     alert("Airdrop claimed successfully!");
@@ -96,7 +73,8 @@ export async function buyPresale(amountMATIC) {
   try {
     const referrer = localStorage.getItem("aigods_referrer") || ethers.ZeroAddress;
     const tx = await contract.buyPreSale(referrer, {
-      value: ethers.parseEther(amountMATIC.toString())
+      value: ethers.parseEther(amountMATIC.toString()),
+      gasLimit: 500000 // Explicit gas limit for Polygon
     });
     alert("Transaction sent... Waiting for confirmation.");
     await tx.wait();
