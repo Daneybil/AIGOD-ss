@@ -4,13 +4,15 @@ import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.m
 // CONFIG — AIGODS PROXY
 //////////////////////////////////////////////////
 
-const CONTRACT_ADDRESS = "0x90bA2e2E23155DB5c00aD99Dc30503fb760b7157";
+const CONTRACT_ADDRESS = "0xb0999Bc622085c1C2031D1aDFfe2096EB5Aafda1";
 
 const ABI = [
   "function buyPreSale(address referrer) payable",
   "function claimAirdrop() external",
-  "function referrals(address user) view returns (uint256 referralCount, uint256 lastUpdated)",
-  "function registerReferral(address referrer, address referee) external"
+  "function getReferralCount(address user) view returns (uint256)",
+  "function hasClaimedAirdrop(address user) view returns (bool)",
+  "function balanceOf(address account) view returns (uint256)",
+  "function decimals() view returns (uint8)"
 ];
 
 // Firebase configuration from your project
@@ -107,9 +109,8 @@ export async function buyWithReferral(referrer, ethAmount) {
 export async function getUserReferrals(address) {
   try {
     const { contract } = await connectWallet();
-    const result = await contract.referrals(address);
-    // result is [referralCount, lastUpdated]
-    return Number(result[0]);
+    const count = await contract.getReferralCount(address);
+    return Number(count);
   } catch (err) {
     console.error("Error fetching referrals:", err);
     return 0;
@@ -122,9 +123,18 @@ export async function getUserReferrals(address) {
 
 export async function claimAirdrop() {
   try {
-    const { contract } = await connectWallet();
+    const { contract, signer } = await connectWallet();
+    const userAddress = await signer.getAddress();
+
+    // Check if already claimed
+    const hasClaimed = await contract.hasClaimedAirdrop(userAddress);
+    if (hasClaimed) {
+      alert("You have already claimed your airdrop!");
+      return;
+    }
 
     const tx = await contract.claimAirdrop();
+    alert("Transaction sent... Waiting for confirmation.");
     await tx.wait();
 
     alert("Airdrop claimed successfully!");
@@ -143,15 +153,35 @@ export async function claimAirdrop() {
 
 export async function updateDashboard() {
   try {
-    const { signer } = await connectWallet();
+    const { signer, contract } = await connectWallet();
     const user = await signer.getAddress();
+    
+    // Fetch referrals
     const referralsCount = await getUserReferrals(user);
 
-    // Update UI element if it exists
+    // Fetch balance
+    const balance = await contract.balanceOf(user);
+    const decimals = await contract.decimals();
+    const formattedBalance = ethers.formatUnits(balance, decimals);
+
+    // Update UI elements if they exist
     const refElement = document.getElementById("myReferrals");
     if (refElement) {
       refElement.innerText = referralsCount;
     }
+
+    const balanceElement = document.getElementById("userTokenBalance");
+    if (balanceElement) {
+      balanceElement.innerText = parseFloat(formattedBalance).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+
+    // Dispatch event for React state sync
+    window.dispatchEvent(new CustomEvent('web3Update', { 
+      detail: { 
+        tokenBalance: parseFloat(formattedBalance).toLocaleString(undefined, { maximumFractionDigits: 2 }),
+        referrals: referralsCount
+      } 
+    }));
 
     await syncLeaderboard(user, referralsCount);
   } catch (err) {

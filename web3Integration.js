@@ -5,414 +5,16 @@ import { forcePolygon, safeContractCall } from "./polygonFix.js";
 // CONFIG — AIGODS PROXY
 //////////////////////////////////////////////////
 
-const PROXY_ADDRESS = "0x90bA2e2E23155DB5c00aD99Dc30503fb760b7157";
+const PROXY_ADDRESS = "0xb0999Bc622085c1C2031D1aDFfe2096EB5Aafda1";
 
 const ABI = [
-	{
-		"inputs": [],
-		"stateMutability": "nonpayable",
-		"type": "constructor"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "oldAdmin",
-				"type": "address"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "newAdmin",
-				"type": "address"
-			}
-		],
-		"name": "AdminChanged",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "impl",
-				"type": "address"
-			}
-		],
-		"name": "Initialized",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "rank",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "totalReferrals",
-				"type": "uint256"
-			}
-		],
-		"name": "LeaderboardUpdated",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "referrer",
-				"type": "address"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "referee",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "totalReferrals",
-				"type": "uint256"
-			}
-		],
-		"name": "ReferralRegistered",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "oldImpl",
-				"type": "address"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "newImpl",
-				"type": "address"
-			}
-		],
-		"name": "Upgraded",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "WithdrawBNB",
-		"type": "event"
-	},
-	{
-		"stateMutability": "payable",
-		"type": "fallback"
-	},
-	{
-		"inputs": [],
-		"name": "admin",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "adm",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "referrer",
-				"type": "address"
-			}
-		],
-		"name": "buyPreSale",
-		"outputs": [
-			{
-				"internalType": "bytes",
-				"name": "",
-				"type": "bytes"
-			}
-		],
-		"stateMutability": "payable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "claimAirdrop",
-		"outputs": [
-			{
-				"internalType": "bytes",
-				"name": "",
-				"type": "bytes"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "confirmLiquidityAdded",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "target",
-				"type": "address"
-			},
-			{
-				"internalType": "bytes",
-				"name": "data",
-				"type": "bytes"
-			}
-		],
-		"name": "executeDelegateCall",
-		"outputs": [
-			{
-				"internalType": "bytes",
-				"name": "",
-				"type": "bytes"
-			}
-		],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "forceSwapBack",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getLeaderboard",
-		"outputs": [
-			{
-				"internalType": "address[]",
-				"name": "",
-				"type": "address[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "implementation",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "impl",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "devWallet",
-				"type": "address"
-			}
-		],
-		"name": "initializeProxy",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"name": "leaderboard",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "leaderboardSize",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "manualBurn",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "referrals",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "referralCount",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "lastUpdated",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "referrer",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "referee",
-				"type": "address"
-			}
-		],
-		"name": "registerReferral",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "newImpl",
-				"type": "address"
-			}
-		],
-		"name": "setImplementation",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "newAdmin",
-				"type": "address"
-			}
-		],
-		"name": "transferAdmin",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "newImpl",
-				"type": "address"
-			},
-			{
-				"internalType": "bytes",
-				"name": "data",
-				"type": "bytes"
-			}
-		],
-		"name": "upgradeToAndCall",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "withdrawBNB",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "token",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "withdrawToken",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"stateMutability": "payable",
-		"type": "receive"
-	}
+  "function buyPreSale(address referrer) payable",
+  "function claimAirdrop() external",
+  "function getTopReferrers() view returns (address[], uint256[])",
+  "function getReferralCount(address user) view returns (uint256)",
+  "function hasClaimedAirdrop(address user) view returns (bool)",
+  "function balanceOf(address account) view returns (uint256)",
+  "function decimals() view returns (uint8)"
 ];
 
 let provider = null;
@@ -468,10 +70,21 @@ export async function claimAirdrop() {
     if (!address) return;
   }
   try {
-    await safeContractCall(contract, "claimAirdrop");
+    const userAddress = await signer.getAddress();
+    const hasClaimed = await contract.hasClaimedAirdrop(userAddress);
+    if (hasClaimed) {
+      alert("Airdrop already claimed.");
+      return;
+    }
+    const tx = await contract.claimAirdrop();
+    alert("Transaction sent... Waiting for confirmation.");
+    await tx.wait();
+    alert("Airdrop claimed successfully!");
     await loadLeaderboard();
+    await updateBalances();
   } catch (err) {
-    console.error("Airdrop call error handled by wrapper.");
+    console.error("Airdrop error:", err.message);
+    alert("Airdrop failed: " + (err.reason || err.message));
   }
 }
 
@@ -487,12 +100,33 @@ export async function buyPresale(amountMATIC) {
     });
     alert("Transaction sent... Waiting for confirmation.");
     await tx.wait();
-    const user = await signer.getAddress();
-    await autoRegisterReferral(user);
     alert("Purchase successful.");
     await loadLeaderboard();
+    await updateBalances();
   } catch (err) {
     alert("Purchase failed: " + (err.reason || err.message));
+  }
+}
+
+async function updateBalances() {
+  if (!signer || !contract) return;
+  try {
+    const address = await signer.getAddress();
+    const balance = await contract.balanceOf(address);
+    const decimals = await contract.decimals();
+    const formatted = ethers.formatUnits(balance, decimals);
+    
+    // Update UI elements if they exist
+    const balanceElement = document.getElementById("userTokenBalance");
+    if (balanceElement) {
+      balanceElement.innerText = parseFloat(formatted).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+    
+    // Also update dashboard if available
+    const { updateDashboard } = await import("./web3Dashboard.js");
+    await updateDashboard();
+  } catch (e) {
+    console.warn("Balance update failed:", e.message);
   }
 }
 
@@ -508,36 +142,26 @@ export async function loadLeaderboard() {
     }
   }
   try {
-    const sizeBig = await fetchContract.leaderboardSize();
-    const count = Number(sizeBig);
-    const limit = Math.min(count, 10);
-    const addresses = [];
-    for (let i = 0; i < limit; i++) {
-      try {
-        const addr = await fetchContract.leaderboard(i);
-        if (addr && addr !== ethers.ZeroAddress) {
-          addresses.push(addr);
-        }
-      } catch (e) {}
-    }
-    const detailedData = await Promise.all(addresses.map(async (addr) => {
-      try {
-        const info = await fetchContract.referrals(addr);
-        return { 
-          address: addr, 
-          referrals: Number(info.referralCount) || 0 
-        };
-      } catch (e) {
-        return { address: addr, referrals: 0 };
-      }
-    }));
-    const sortedData = detailedData.sort((a, b) => b.referrals - a.referrals);
+    const [addresses, counts] = await fetchContract.getTopReferrers();
+    const detailedData = addresses.map((addr, index) => ({
+      address: addr,
+      referrals: Number(counts[index])
+    })).filter(item => item.address !== ethers.ZeroAddress);
+
     if (window.renderLeaderboard) {
-      window.renderLeaderboard(sortedData);
+      window.renderLeaderboard(detailedData);
     }
   } catch (err) {
     console.error("Leaderboard fetch failed:", err.message);
   }
 }
+
+// Periodic refresh every 30 seconds
+setInterval(() => {
+  loadLeaderboard();
+  if (signer && contract) {
+    updateBalances();
+  }
+}, 30000);
 
 captureReferralFromURL();

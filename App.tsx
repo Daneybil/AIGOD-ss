@@ -113,6 +113,7 @@ const App: React.FC = () => {
   // Web3 Connection States
   const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
   const [walletBalance, setWalletBalance] = useState<string>('0.00');
+  const [tokenBalance, setTokenBalance] = useState<string>('0.00');
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isWhitepaperOpen, setIsWhitepaperOpen] = useState(false);
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
@@ -327,6 +328,18 @@ const App: React.FC = () => {
       const provider = new ethers.BrowserProvider((window as any).ethereum);
       const balance = await provider.getBalance(address);
       setWalletBalance(ethers.formatEther(balance).slice(0, 8));
+      
+      // Fetch token balance
+      try {
+        const contract = new ethers.Contract(PROXY_CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+        const tBalance = await contract.balanceOf(address);
+        const decimals = await contract.decimals();
+        const formatted = ethers.formatUnits(tBalance, decimals);
+        setTokenBalance(parseFloat(formatted).toLocaleString(undefined, { maximumFractionDigits: 2 }));
+      } catch (e) {
+        console.warn("Token balance fetch failed:", e);
+      }
+      
       setIsWalletModalOpen(false);
     }
     setIsConnecting(false);
@@ -348,6 +361,15 @@ const App: React.FC = () => {
   const handleAddTokenToWallet = async () => {
     await dashboardAddToken();
   };
+
+  useEffect(() => {
+    const handleWeb3Update = (e: any) => {
+      if (e.detail.tokenBalance) setTokenBalance(e.detail.tokenBalance);
+      if (e.detail.referrals !== undefined) setCurrentUserReferrals(e.detail.referrals);
+    };
+    window.addEventListener('web3Update', handleWeb3Update);
+    return () => window.removeEventListener('web3Update', handleWeb3Update);
+  }, []);
 
   useEffect(() => {
     if (connectedAddress) {
@@ -434,7 +456,12 @@ const App: React.FC = () => {
             <Wallet2 size={14} className="md:w-4 md:h-4" />
             <div className="flex flex-col items-start text-left leading-none">
               <span className="truncate max-w-[80px] md:max-w-none">{connectedAddress ? `${connectedAddress.slice(0,6)}...` : 'Connect'}</span>
-              {connectedAddress && <span className="text-[7px] md:text-[8px] text-cyan-500/60 mt-1 uppercase">{walletBalance} MATIC</span>}
+              {connectedAddress && (
+                <div className="flex flex-col items-start">
+                  <span className="text-[7px] md:text-[8px] text-cyan-500/60 mt-1 uppercase">{walletBalance} MATIC</span>
+                  <span className="text-[7px] md:text-[8px] text-yellow-500/60 mt-0.5 uppercase">{tokenBalance} AIGODS</span>
+                </div>
+              )}
             </div>
           </button>
           <button 
@@ -691,6 +718,14 @@ const App: React.FC = () => {
             <div className="mt-6 p-6 md:p-10 bg-black/40 rounded-2xl md:rounded-[2rem] border border-gray-800/40 flex items-center justify-between shadow-inner">
               <span className="text-gray-400 text-xs md:text-xl uppercase font-black tracking-tighter">MY REFERRALS:</span>
               <span id="myReferrals" className="text-[#00ffff] text-4xl md:text-6xl font-black italic">0</span>
+            </div>
+            
+            <div className="p-6 md:p-10 bg-black/40 rounded-2xl md:rounded-[2rem] border border-gray-800/40 flex items-center justify-between shadow-inner">
+              <span className="text-gray-400 text-xs md:text-xl uppercase font-black tracking-tighter">TOKEN BALANCE:</span>
+              <div className="flex items-baseline gap-2">
+                <span id="userTokenBalance" className="text-[#f3ba2f] text-4xl md:text-6xl font-black italic">{tokenBalance}</span>
+                <span className="text-gray-500 text-xs md:text-sm font-black italic">AIGODS</span>
+              </div>
             </div>
           </div>
         </div>
