@@ -9,6 +9,8 @@ let provider = null;
 let signer = null;
 let contract = null;
 
+const zeroAddress = "0x0000000000000000000000000000000000000000";
+
 export async function connectWallet() {
   if (!window.ethereum) {
     alert("MetaMask is required.");
@@ -52,14 +54,16 @@ export async function claimAirdrop() {
       return;
     }
     const tx = await contract.claimAirdrop();
+    console.log("Transaction sent:", tx.hash);
     alert("Transaction sent... Waiting for confirmation.");
     await tx.wait();
+    console.log("Transaction successful");
     alert("Airdrop claimed successfully!");
     await loadLeaderboard();
     await updateBalances();
-  } catch (err) {
-    console.error(err);
-    alert(err.shortMessage || err.message);
+  } catch (error) {
+    console.error("Full error:", error);
+    alert(error.reason || error.message || "Transaction failed");
   }
 }
 
@@ -69,18 +73,30 @@ export async function buyPresale(amountMATIC) {
     if (!address) return;
   }
   try {
-    const referrer = localStorage.getItem("aigods_referrer") || ethers.ZeroAddress;
-    const tx = await contract.buyPreSale(referrer, {
-      value: ethers.parseEther(amountMATIC.toString())
-    });
+    const referralAddress = localStorage.getItem("aigods_referrer");
+    const ref = referralAddress && referralAddress !== ""
+      ? referralAddress
+      : zeroAddress;
+
+    const tx = await contract.buyPreSale(
+      ref,
+      {
+        value: ethers.parseEther(amountMATIC.toString())
+      }
+    );
+
+    console.log("Transaction sent:", tx.hash);
     alert("Transaction sent... Waiting for confirmation.");
+
     await tx.wait();
+
+    console.log("Transaction successful");
     alert("Purchase successful.");
     await loadLeaderboard();
     await updateBalances();
-  } catch (err) {
-    console.error(err);
-    alert(err.shortMessage || err.message);
+  } catch (error) {
+    console.error("Full error:", error);
+    alert(error.reason || error.message || "Transaction failed");
   }
 }
 

@@ -5,6 +5,8 @@ import { forcePolygon } from "./polygonFix.js";
 const CONTRACT_ADDRESS = PROXY_CONTRACT_ADDRESS;
 const ABI = CONTRACT_ABI;
 
+const zeroAddress = "0x0000000000000000000000000000000000000000";
+
 // Firebase configuration from your project
 const firebaseConfig = {
   apiKey: "AIzaSyD-TLeC7XjRLQXPRgnkP4Bz7G8LUw3NLJM",
@@ -72,8 +74,9 @@ export async function buyWithReferral(referrer, ethAmount) {
   try {
     const { contract } = await connectWallet();
     
-    // Ensure referrer is a valid address, default to zero address if not
-    const ref = (referrer && ethers.isAddress(referrer)) ? referrer : "0x0000000000000000000000000000000000000000";
+    const ref = referrer && referrer !== ""
+      ? referrer
+      : zeroAddress;
 
     const tx = await contract.buyPreSale(
       ref,
@@ -82,15 +85,19 @@ export async function buyWithReferral(referrer, ethAmount) {
       }
     );
 
+    console.log("Transaction sent:", tx.hash);
+    alert("Transaction sent... Waiting for confirmation.");
+
     await tx.wait();
 
+    console.log("Transaction successful");
     alert("Purchase successful!");
 
     await updateDashboard();
 
-  } catch (err) {
-    console.error(err);
-    alert(err.shortMessage || err.message);
+  } catch (error) {
+    console.error("Full error:", error);
+    alert(error.reason || error.message || "Transaction failed");
   }
 }
 
@@ -126,16 +133,18 @@ export async function claimAirdrop() {
     }
 
     const tx = await contract.claimAirdrop();
+    console.log("Transaction sent:", tx.hash);
     alert("Transaction sent... Waiting for confirmation.");
     await tx.wait();
 
+    console.log("Transaction successful");
     alert("Airdrop claimed successfully!");
 
     await updateDashboard();
 
-  } catch (err) {
-    console.error(err);
-    alert(err.shortMessage || err.message);
+  } catch (error) {
+    console.error("Full error:", error);
+    alert(error.reason || error.message || "Transaction failed");
   }
 }
 
