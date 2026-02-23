@@ -21,7 +21,13 @@ export async function connectWallet() {
   
   try {
     provider = new ethers.BrowserProvider(window.ethereum);
-    await provider.send("eth_requestAccounts", []);
+    
+    // Check if already connected
+    const accounts = await provider.listAccounts();
+    if (accounts.length === 0) {
+      await provider.send("eth_requestAccounts", []);
+    }
+    
     signer = await provider.getSigner();
     contract = new ethers.Contract(PROXY_ADDRESS, ABI, signer);
     const address = await signer.getAddress();
@@ -42,23 +48,43 @@ export function captureReferralFromURL() {
 }
 
 export async function claimAirdrop() {
-  if (!contract) {
+  try {
     const address = await connectWallet();
     if (!address) return;
-  }
-  try {
+
+    // Check if paused or locked
+    const [isPaused, isLocked] = await Promise.all([
+      contract.paused(),
+      contract.isLockedPhase()
+    ]);
+
+    if (isPaused) {
+      alert("Contract is currently paused.");
+      return;
+    }
+    if (isLocked) {
+      alert("Presale/Airdrop is currently in a locked phase.");
+      return;
+    }
+
     const userAddress = await signer.getAddress();
+    
+    // Check if already claimed
     const hasClaimed = await contract.hasClaimedAirdrop(userAddress);
     if (hasClaimed) {
       alert("Airdrop already claimed.");
       return;
     }
+
     const tx = await contract.claimAirdrop();
     console.log("Transaction sent:", tx.hash);
     alert("Transaction sent... Waiting for confirmation.");
+    
     await tx.wait();
+    
     console.log("Transaction successful");
     alert("Airdrop claimed successfully!");
+    
     await loadLeaderboard();
     await updateBalances();
   } catch (error) {
@@ -68,11 +94,25 @@ export async function claimAirdrop() {
 }
 
 export async function buyPresale(amountMATIC) {
-  if (!contract) {
+  try {
     const address = await connectWallet();
     if (!address) return;
-  }
-  try {
+
+    // Check if paused or locked
+    const [isPaused, isLocked] = await Promise.all([
+      contract.paused(),
+      contract.isLockedPhase()
+    ]);
+
+    if (isPaused) {
+      alert("Contract is currently paused.");
+      return;
+    }
+    if (isLocked) {
+      alert("Presale is currently in a locked phase.");
+      return;
+    }
+
     const referralAddress = localStorage.getItem("aigods_referrer");
     const ref = referralAddress && referralAddress !== ""
       ? referralAddress
@@ -92,6 +132,7 @@ export async function buyPresale(amountMATIC) {
 
     console.log("Transaction successful");
     alert("Purchase successful.");
+    
     await loadLeaderboard();
     await updateBalances();
   } catch (error) {

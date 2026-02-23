@@ -50,7 +50,13 @@ export async function connectWallet() {
   try {
     await forcePolygon();
     const provider = new ethers.BrowserProvider(window.ethereum);
-    await provider.send("eth_requestAccounts", []);
+    
+    // Check if already connected to avoid unnecessary popups
+    const accounts = await provider.listAccounts();
+    if (accounts.length === 0) {
+      await provider.send("eth_requestAccounts", []);
+    }
+    
     const signer = await provider.getSigner();
 
     const contract = new ethers.Contract(
@@ -74,6 +80,21 @@ export async function buyWithReferral(referrer, ethAmount) {
   try {
     const { contract } = await connectWallet();
     
+    // Check if paused or locked
+    const [isPaused, isLocked] = await Promise.all([
+      contract.paused(),
+      contract.isLockedPhase()
+    ]);
+
+    if (isPaused) {
+      alert("Contract is currently paused.");
+      return;
+    }
+    if (isLocked) {
+      alert("Presale is currently in a locked phase.");
+      return;
+    }
+
     const ref = referrer && referrer !== ""
       ? referrer
       : zeroAddress;
@@ -123,6 +144,22 @@ export async function getUserReferrals(address) {
 export async function claimAirdrop() {
   try {
     const { contract, signer } = await connectWallet();
+
+    // Check if paused or locked
+    const [isPaused, isLocked] = await Promise.all([
+      contract.paused(),
+      contract.isLockedPhase()
+    ]);
+
+    if (isPaused) {
+      alert("Contract is currently paused.");
+      return;
+    }
+    if (isLocked) {
+      alert("Airdrop is currently in a locked phase.");
+      return;
+    }
+
     const userAddress = await signer.getAddress();
 
     // Check if already claimed
