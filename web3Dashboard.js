@@ -47,9 +47,8 @@ export async function connectWallet() {
 
   try {
     await forcePolygon();
-    await window.ethereum.request({ method: "eth_requestAccounts" });
-
     const provider = new ethers.BrowserProvider(window.ethereum);
+    await provider.send("eth_requestAccounts", []);
     const signer = await provider.getSigner();
 
     const contract = new ethers.Contract(
@@ -79,8 +78,7 @@ export async function buyWithReferral(referrer, ethAmount) {
     const tx = await contract.buyPreSale(
       ref,
       { 
-        value: ethers.parseEther(ethAmount.toString()),
-        gasLimit: 500000
+        value: ethers.parseEther(ethAmount.toString())
       }
     );
 
@@ -91,8 +89,8 @@ export async function buyWithReferral(referrer, ethAmount) {
     await updateDashboard();
 
   } catch (err) {
-    console.error("Purchase error:", err);
-    alert("Purchase failed: " + (err.reason || err.message || "Unknown error"));
+    console.error(err);
+    alert(err.shortMessage || err.message);
   }
 }
 
@@ -127,9 +125,7 @@ export async function claimAirdrop() {
       return;
     }
 
-    const tx = await contract.claimAirdrop({
-      gasLimit: 300000
-    });
+    const tx = await contract.claimAirdrop();
     alert("Transaction sent... Waiting for confirmation.");
     await tx.wait();
 
@@ -138,8 +134,8 @@ export async function claimAirdrop() {
     await updateDashboard();
 
   } catch (err) {
-    console.error("Airdrop error:", err);
-    alert("Airdrop failed: " + (err.reason || err.message || "Already claimed or ineligible"));
+    console.error(err);
+    alert(err.shortMessage || err.message);
   }
 }
 

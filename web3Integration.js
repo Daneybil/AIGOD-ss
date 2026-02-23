@@ -51,17 +51,15 @@ export async function claimAirdrop() {
       alert("Airdrop already claimed.");
       return;
     }
-    const tx = await contract.claimAirdrop({
-      gasLimit: 300000 // Explicit gas limit for Polygon
-    });
+    const tx = await contract.claimAirdrop();
     alert("Transaction sent... Waiting for confirmation.");
     await tx.wait();
     alert("Airdrop claimed successfully!");
     await loadLeaderboard();
     await updateBalances();
   } catch (err) {
-    console.error("Airdrop error:", err.message);
-    alert("Airdrop failed: " + (err.reason || err.message));
+    console.error(err);
+    alert(err.shortMessage || err.message);
   }
 }
 
@@ -73,8 +71,7 @@ export async function buyPresale(amountMATIC) {
   try {
     const referrer = localStorage.getItem("aigods_referrer") || ethers.ZeroAddress;
     const tx = await contract.buyPreSale(referrer, {
-      value: ethers.parseEther(amountMATIC.toString()),
-      gasLimit: 500000 // Explicit gas limit for Polygon
+      value: ethers.parseEther(amountMATIC.toString())
     });
     alert("Transaction sent... Waiting for confirmation.");
     await tx.wait();
@@ -82,7 +79,8 @@ export async function buyPresale(amountMATIC) {
     await loadLeaderboard();
     await updateBalances();
   } catch (err) {
-    alert("Purchase failed: " + (err.reason || err.message));
+    console.error(err);
+    alert(err.shortMessage || err.message);
   }
 }
 
