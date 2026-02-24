@@ -199,51 +199,10 @@ const App: React.FC = () => {
     setFirebaseError(null);
     setIsLeaderboardLoading(true);
     try {
-      const provider = new ethers.JsonRpcProvider("https://polygon-rpc.com/");
-      const contract = new ethers.Contract(PROXY_CONTRACT_ADDRESS, CONTRACT_ABI, provider);
-      
-      const sizeBig = await contract.leaderboardSize();
-      const count = Number(sizeBig);
-      const limitTo = Math.min(count, 10);
-      
-      const addresses = [];
-      for (let i = 0; i < limitTo; i++) {
-        try {
-          const addr = await contract.leaderboard(i);
-          if (addr && addr !== ethers.ZeroAddress) {
-            addresses.push(addr);
-          }
-        } catch (e) {}
-      }
-
-      const combinedData = await Promise.all(addresses.map(async (addr) => {
-        try {
-          const refInfo = await contract.referrals(addr);
-          return {
-            address: addr,
-            referrals: Number(refInfo.referralCount) || 0,
-            lastUpdated: Number(refInfo.lastUpdated)
-          };
-        } catch (e) {
-          return { address: addr, referrals: 0, lastUpdated: 0 };
-        }
-      }));
-
-      const sortedData = combinedData.sort((a, b) => b.referrals - a.referrals);
-      setLeaderboardData(sortedData);
+      await web3LoadLeaderboard();
     } catch (err: any) {
-      console.error("Leaderboard Blockchain Error:", err?.message || err);
-      try {
-        const q = query(collection(db, "users"), orderBy("referrals", "desc"), limit(10));
-        const querySnapshot = await getDocs(q);
-        const data: any[] = [];
-        querySnapshot.forEach((doc: any) => {
-          data.push({ address: doc.id, ...doc.data() });
-        });
-        setLeaderboardData(data);
-      } catch (fbErr) {
-        setFirebaseError("Failed to synchronize leaderboard data.");
-      }
+      console.error("Leaderboard fetch failed:", err);
+      setFirebaseError("Failed to load leaderboard from contract.");
     } finally {
       setIsLeaderboardLoading(false);
     }
