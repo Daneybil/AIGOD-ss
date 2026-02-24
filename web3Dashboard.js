@@ -59,6 +59,12 @@ export async function connectWallet() {
     
     const signer = await provider.getSigner();
 
+    // Check if contract exists on this network
+    const code = await provider.getCode(CONTRACT_ADDRESS);
+    if (code === "0x" || code === "0x0") {
+       throw new Error(`Contract not found at ${CONTRACT_ADDRESS}. Please ensure you are on the correct network (Polygon Mainnet).`);
+    }
+
     const contract = new ethers.Contract(
       CONTRACT_ADDRESS,
       ABI,
@@ -80,11 +86,17 @@ export async function buyWithReferral(referrer, ethAmount) {
   try {
     const { contract } = await connectWallet();
     
-    // Check if paused or locked
-    const [isPaused, isLocked] = await Promise.all([
-      contract.paused(),
-      contract.isLockedPhase()
-    ]);
+    // Check if paused or locked with error handling
+    let isPaused = false;
+    let isLocked = false;
+    try {
+      [isPaused, isLocked] = await Promise.all([
+        contract.paused(),
+        contract.isLockedPhase()
+      ]);
+    } catch (e) {
+      console.warn("State check failed, assuming unpaused:", e.message);
+    }
 
     if (isPaused) {
       alert("Contract is currently paused.");
@@ -145,11 +157,17 @@ export async function claimAirdrop() {
   try {
     const { contract, signer } = await connectWallet();
 
-    // Check if paused or locked
-    const [isPaused, isLocked] = await Promise.all([
-      contract.paused(),
-      contract.isLockedPhase()
-    ]);
+    // Check if paused or locked with error handling
+    let isPaused = false;
+    let isLocked = false;
+    try {
+      [isPaused, isLocked] = await Promise.all([
+        contract.paused(),
+        contract.isLockedPhase()
+      ]);
+    } catch (e) {
+      console.warn("State check failed, assuming unpaused:", e.message);
+    }
 
     if (isPaused) {
       alert("Contract is currently paused.");

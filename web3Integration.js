@@ -29,6 +29,13 @@ export async function connectWallet() {
     }
     
     signer = await provider.getSigner();
+    
+    // Check if contract exists on this network
+    const code = await provider.getCode(PROXY_ADDRESS);
+    if (code === "0x" || code === "0x0") {
+       throw new Error(`Contract not found at ${PROXY_ADDRESS}. Please ensure you are on the correct network (Polygon Mainnet).`);
+    }
+
     contract = new ethers.Contract(PROXY_ADDRESS, ABI, signer);
     const address = await signer.getAddress();
     await loadLeaderboard();
@@ -52,11 +59,17 @@ export async function claimAirdrop() {
     const address = await connectWallet();
     if (!address) return;
 
-    // Check if paused or locked
-    const [isPaused, isLocked] = await Promise.all([
-      contract.paused(),
-      contract.isLockedPhase()
-    ]);
+    // Check if paused or locked with error handling
+    let isPaused = false;
+    let isLocked = false;
+    try {
+      [isPaused, isLocked] = await Promise.all([
+        contract.paused(),
+        contract.isLockedPhase()
+      ]);
+    } catch (e) {
+      console.warn("State check failed, assuming unpaused:", e.message);
+    }
 
     if (isPaused) {
       alert("Contract is currently paused.");
@@ -98,11 +111,17 @@ export async function buyPresale(amountMATIC) {
     const address = await connectWallet();
     if (!address) return;
 
-    // Check if paused or locked
-    const [isPaused, isLocked] = await Promise.all([
-      contract.paused(),
-      contract.isLockedPhase()
-    ]);
+    // Check if paused or locked with error handling
+    let isPaused = false;
+    let isLocked = false;
+    try {
+      [isPaused, isLocked] = await Promise.all([
+        contract.paused(),
+        contract.isLockedPhase()
+      ]);
+    } catch (e) {
+      console.warn("State check failed, assuming unpaused:", e.message);
+    }
 
     if (isPaused) {
       alert("Contract is currently paused.");
@@ -167,8 +186,14 @@ export async function loadLeaderboard() {
   let fetchContract = contract;
   if (!fetchContract) {
     try {
-      const readProvider = new ethers.JsonRpcProvider("https://polygon-rpc.com/");
-      fetchContract = new ethers.Contract(PROXY_ADDRESS, ABI, readProvider);
+      // Try current provider first, then fallback to public RPCs
+      if (window.ethereum) {
+        const browserProvider = new ethers.BrowserProvider(window.ethereum);
+        fetchContract = new ethers.Contract(PROXY_ADDRESS, ABI, browserProvider);
+      } else {
+        const readProvider = new ethers.JsonRpcProvider("https://polygon-rpc.com/");
+        fetchContract = new ethers.Contract(PROXY_ADDRESS, ABI, readProvider);
+      }
     } catch (e) {
       console.warn("RPC Provider failed, skipping leaderboard fetch.");
       return;
@@ -186,6 +211,19 @@ export async function loadLeaderboard() {
     }
   } catch (err) {
     console.error("Leaderboard fetch failed:", err.message);
+    // If it fails on Polygon, maybe it's on BSC?
+    if (!contract) {
+       try {
+         const bscProvider = new ethers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
+         const bscContract = new ethers.Contract(PROXY_ADDRESS, ABI, bscProvider);
+         const [addresses, counts] = await bscContract.getTopReferrers();
+         const detailedData = addresses.map((addr, index) => ({
+           address: addr,
+           referrals: Number(counts[index])
+         })).filter(item => item.address !== ethers.ZeroAddress);
+         if (window.renderLeaderboard) window.renderLeaderboard(detailedData);
+       } catch (e) {}
+    }
   }
 }
 

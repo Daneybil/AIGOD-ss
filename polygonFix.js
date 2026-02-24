@@ -24,16 +24,23 @@ export async function forcePolygon() {
   if (!window.ethereum) throw new Error("No wallet");
 
   try {
+    const chainId = await window.ethereum.request({ method: "eth_chainId" });
+    if (chainId === POLYGON_CHAIN.chainId) return;
+
     await window.ethereum.request({
       method: "wallet_switchEthereumChain",
       params: [{ chainId: POLYGON_CHAIN.chainId }]
     });
   } catch (switchError) {
     if (switchError.code === 4902) {
-      await window.ethereum.request({
-        method: "wallet_addEthereumChain",
-        params: [POLYGON_CHAIN]
-      });
+      try {
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [POLYGON_CHAIN]
+        });
+      } catch (addError) {
+        throw addError;
+      }
     } else {
       throw switchError;
     }
