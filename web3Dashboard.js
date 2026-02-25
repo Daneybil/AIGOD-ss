@@ -1,4 +1,4 @@
-import { ethers } from "https://esm.sh/ethers@6.13.5";
+import { ethers } from "ethers";
 import { PROXY_CONTRACT_ADDRESS, CONTRACT_ABI } from "./constants.ts";
 import { forcePolygon } from "./polygonFix.js";
 

@@ -31,7 +31,7 @@ import {
   Target,
   Megaphone
 } from 'lucide-react';
-import { ethers } from "https://esm.sh/ethers@6.13.5";
+import { ethers } from "ethers";
 import LogoGrid from './components/LogoGrid.tsx';
 import ParticleBackground from './components/ParticleBackground.tsx';
 import ChatAssistant from './components/ChatAssistant.tsx';
@@ -54,14 +54,11 @@ import {
   addTokenToWallet as dashboardAddToken
 } from "./web3Dashboard.js";
 
-// Firebase imports from CDN for the challenge system
-// @ts-ignore
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-// @ts-ignore
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
-// @ts-ignore
+// Firebase imports from installed package
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
 import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, getDocs, query, orderBy, limit, enableIndexedDbPersistence, onSnapshot, increment, addDoc } 
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {

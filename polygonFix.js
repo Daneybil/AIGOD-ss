@@ -1,4 +1,4 @@
-import { ethers } from "https://esm.sh/ethers@6.13.5";
+import { ethers } from "ethers";
 
 //////////////////////////////////////////////////
 // NETWORK CONFIG
