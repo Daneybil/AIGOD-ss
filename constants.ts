@@ -1,6 +1,6 @@
 export const AIGODS_LOGO_URL = 'https://img.sanishtech.com/u/bcc6d8573341ba298bb44e4df349397a.png';
 
-export const PROXY_CONTRACT_ADDRESS = '0xb0999Bc622085c1C2031D1aDFfe2096EB5Aafda1';
+export const PROXY_CONTRACT_ADDRESS = '0xACe6De8F6c453882074cd796d3ae6A070777d65e';
 
 // Integrated smart contract ABI for the AIGODS Proxy
 export const CONTRACT_ABI = [
