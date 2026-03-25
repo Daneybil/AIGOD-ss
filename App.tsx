@@ -97,9 +97,64 @@ const getBadge = (rank: number) => {
   return "ELITE";
 };
 
-const LOGO_FALLBACK = "https://ui-avatars.com/api/?name=AIGODS&background=0D0D0D&color=00ffff&size=256&bold=true";
+const LOGO_FALLBACK = "/logo.png";
 
 const POLYGON_CHAIN_ID = 137; // Polygon Mainnet Decimal
+
+const faqItems = [
+  {
+    q: "1. What is AIGODS?",
+    a: "AIGODS is a decentralized superintelligence token designed to power AI-driven agents and autonomous digital economies. It aims to bridge artificial intelligence with blockchain technology, creating a scalable and intelligent Web3 ecosystem."
+  },
+  {
+    q: "2. What makes AIGODS unique?",
+    a: "AIGODS positions itself as a next-generation AI + blockchain project, focused on enabling decentralized intelligence, automated systems, and community-driven growth through incentives such as airdrops and referral rewards."
+  },
+  {
+    q: "5. How can I participate in the pre-sale?",
+    a: "Users can participate by connecting their crypto wallet and purchasing AIGODS tokens using BNB only through the platform dashboard."
+  },
+  {
+    q: "6. Is there an airdrop available?",
+    a: "Yes. Users can claim free AIGODS tokens by completing simple tasks such as following social media accounts, joining Telegram channels and groups, and subscribing to YouTube."
+  },
+  {
+    q: "7. How does the referral system work?",
+    a: "AIGODS offers a referral rewards program where users earn 20% instant rewards on every investment made through their unique referral link.<br><br>For example, if someone invests $10,000 through your link, you instantly receive 20% of that amount as a reward.<br><br>There is no limit to how many people you can refer, making this a powerful opportunity to earn even without investing your own money."
+  },
+  {
+    q: "8. Is the project audited?",
+    a: "Yes. The AIGODS smart contract has undergone security auditing to ensure safety and reliability for users and investors."
+  },
+  {
+    q: "9. Which blockchains are supported?",
+    a: "AIGODS currently supports BNB Chain only.<br><br>There are plans to expand into a cross-chain ecosystem after the official mainnet launch, including integration with multiple blockchains.<br><br>The project also has long-term plans to develop its own native blockchain."
+  },
+  {
+    q: "10. How can I buy crypto for participation?",
+    a: "Users can purchase BNB using integrated payment providers such as MoonPay, allowing instant purchases via debit or credit card."
+  },
+  {
+    q: "11. How do I claim my tokens?",
+    a: "After participating in the pre-sale, tokens are automatically sent to your connected wallet once payment is completed.<br><br>Airdrop tokens are also automatically sent after claiming.<br><br>If tokens do not appear, simply click \"Add AIGODS to Wallet\" from the dashboard."
+  },
+  {
+    q: "12. What is the long-term vision of AIGODS?",
+    a: "AIGODS aims to become the intelligence layer of Web3 by building a decentralized AI ecosystem powered by autonomous agents, scalable infrastructure, and strong community participation."
+  },
+  {
+    q: "13. When will AIGODS be launched?",
+    a: "AIGODS will launch once the allocated token supply is fully acquired by investors and participants, ensuring a strong and distributed foundation before entering the market."
+  },
+  {
+    q: "14. What is the target listing price?",
+    a: "The project is targeting a listing price of $3.50 based on its growth strategy and long-term development plans."
+  },
+  {
+    q: "15. How much is committed to AIGODS?",
+    a: "A total of $10 billion is being committed to the AIGODS project.<br><br>AIGODS is positioned to become one of the biggest crypto projects in the history of cryptocurrency. It is built to transform the industry, create massive opportunities, and empower people globally.<br><br>Getting in early represents one of the biggest opportunities and strategic decisions anyone can make in this space. AIGODS is designed for long-term impact, strong growth, and real utility.<br><br>AIGODS is here to stay, and it's not going anywhere."
+  }
+];
 
 const App: React.FC = () => {
   const [calcAmount, setCalcAmount] = useState<string>('0.0');
@@ -113,6 +168,8 @@ const App: React.FC = () => {
   const [tokenBalance, setTokenBalance] = useState<string>('0.00');
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isWhitepaperOpen, setIsWhitepaperOpen] = useState(false);
+  const [isFaqOpen, setIsFaqOpen] = useState(false);
+  const [activeFaqIndex, setActiveFaqIndex] = useState<number | null>(null);
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
   const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
   const [liveFeedData, setLiveFeedData] = useState<any[]>([]);
@@ -720,6 +777,17 @@ const App: React.FC = () => {
           </button>
         </div>
 
+        {/* FAQ BUTTON */}
+        <div className="mt-10 mb-20 flex justify-center">
+          <button 
+            id="faq-button"
+            onClick={() => setIsFaqOpen(true)}
+            className="faq-btn px-16 py-7 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-black rounded-full uppercase tracking-[0.3em] text-sm md:text-base shadow-[0_0_40px_rgba(0,255,255,0.4)] hover:shadow-[0_0_60px_rgba(0,255,255,0.7)] transition-all transform hover:scale-105 animate-dim-light-blue"
+          >
+            Explore more details and FAQs
+          </button>
+        </div>
+
         <div className="w-full max-w-4xl bg-[#080812] border border-gray-800/60 rounded-[3rem] p-6 md:p-16 mb-20 md:mb-24 relative overflow-hidden text-center shadow-[0_0_100px_rgba(0,0,0,0.9)]">
            <h3 className="text-3xl sm:text-5xl md:text-[5.5rem] font-black italic tracking-tighter uppercase leading-none mb-8 md:mb-10">
              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00ffff] to-[#ff00ff]">BECOME AN AIGODS</span> <br/>
@@ -806,7 +874,7 @@ const App: React.FC = () => {
         </section>
 
         <LogoGrid />
-
+        
         <div className="w-full max-w-4xl px-4 mt-20 md:mt-24">
           <div className="bg-[#050508] border border-green-500/20 rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 text-center relative overflow-hidden shadow-2xl">
              <div className="bg-green-500/10 w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 md:mb-8 border border-green-500/30">
@@ -1149,17 +1217,74 @@ const App: React.FC = () => {
                  </div>
                  <div className="text-center mb-20">
                     <h4 className="text-3xl md:text-5xl font-black italic text-white uppercase mb-4">7. WHY AI GODS?</h4>
-                    <p className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-[0.2em] mb-12 max-w-xl mx-auto">AI GODS combines decentralized voice AI, powerful incentives, and massive global momentum. This isn't just hype—it's a movement.</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                       {[ { t: 'MAXIMUM UPSIDE', d: 'EARLY ACCESS TO LOW PRE-SALE PRICING' }, { t: 'COMMUNITY DOMINANCE', d: 'POWERED BY THE ARCHITECTURE OF WEB3' }, { t: 'FINANCIAL FREEDOM', d: 'BUILT FOR THE TITANS & VISIONARIES' } ].map((card, i) => (
-                         <div key={i} className="p-8 bg-[#0a0a0f] rounded-[2rem] border border-white/5 flex flex-col items-center justify-center min-h-[160px]"><span className="text-[10px] md:text-xs font-black text-cyan-400 italic mb-4 uppercase tracking-widest">{card.t}</span><p className="text-[8px] md:text-[9px] font-bold text-gray-600 uppercase tracking-[0.3em]">{card.d}</p></div>
-                       ))}
+                     <p className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-[0.2em] mb-12 max-w-xl mx-auto">AI GODS combines decentralized voice AI, powerful incentives, and massive global momentum. This isn't just hype—it's a movement.</p>
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {[ { t: 'MAXIMUM UPSIDE', d: 'EARLY ACCESS TO LOW PRE-SALE PRICING' }, { t: 'COMMUNITY DOMINANCE', d: 'POWERED BY THE ARCHITECTURE OF WEB3' }, { t: 'FINANCIAL FREEDOM', d: 'BUILT FOR THE TITANS & VISIONARIES' } ].map((card, i) => (
+                          <div key={i} className="p-8 bg-[#0a0a0f] rounded-[2rem] border border-white/5 flex flex-col items-center justify-center min-h-[160px]"><span className="text-[10px] md:text-xs font-black text-cyan-400 italic mb-4 uppercase tracking-widest">{card.t}</span><p className="text-[8px] md:text-[9px] font-bold text-gray-600 uppercase tracking-[0.3em]">{card.d}</p></div>
+                        ))}
+                     </div>
+                  </div>
+                  <div className="text-center mb-20">
+                    <h4 className="text-3xl md:text-5xl font-black italic text-white uppercase mb-4">8. FREQUENTLY ASKED QUESTIONS (FAQ)</h4>
+                    <div className="space-y-6 text-left">
+                      <div className="p-6 bg-[#0a0a0f] rounded-[2rem] border border-white/5">
+                        <h5 className="text-cyan-400 font-black uppercase text-sm mb-3">15. How much is committed to AIGODS?</h5>
+                        <p className="text-gray-400 text-sm leading-relaxed">
+                          A total of <span className="text-white font-black">$10 billion</span> is being committed to the AIGODS project.
+                          <br/><br/>
+                          AIGODS is positioned to become one of the biggest crypto projects in the history of cryptocurrency. It is built to transform the industry, create massive opportunities, and empower people globally.
+                          <br/><br/>
+                          Getting in early represents one of the biggest opportunities and strategic decisions anyone can make in this space. AIGODS is designed for long-term impact, strong growth, and real utility.
+                          <br/><br/>
+                          AIGODS is here to stay — and it’s not going anywhere.
+                        </p>
+                      </div>
                     </div>
-                 </div>
-                 <div className="text-center py-20 border-t border-white/5">
+                  </div>
+                  <div className="text-center py-20 border-t border-white/5">
                    <h2 className="text-5xl md:text-[8rem] font-black italic uppercase text-white leading-[0.8] mb-6 tracking-tighter">AI GODS — THE FUTURE<br/>IS HERE.</h2>
                    <p className="text-2xl md:text-[4rem] font-black italic uppercase text-yellow-400 leading-none mb-10 tracking-tighter">BE RICH. RETIRE EARLY. RULE THE CRYPTO WORLD. 👑</p>
                    <button onClick={() => setIsWhitepaperOpen(false)} className="mt-12 bg-white/5 border border-white/10 text-gray-400 px-12 py-4 rounded-xl font-black uppercase text-[10px] tracking-[0.4em] hover:bg-white/10 transition-all">CLOSE WHITE PAPER</button>
+                 </div>
+             </div>
+          </div>
+        </div>
+      )}
+      {/* FAQ MODAL */}
+      {isFaqOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-4 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-black/95 backdrop-blur-xl" onClick={() => setIsFaqOpen(false)}></div>
+          <div className="relative w-full max-w-[1000px] h-full md:h-[90vh] bg-[#050508] border-x md:border border-white/10 md:rounded-[2.5rem] overflow-hidden flex flex-col font-inter text-[#eaf2ff]">
+             <div className="flex-1 overflow-y-auto scrollbar-hide px-6 md:px-16 py-10 md:py-20">
+                 <div className="flex items-center justify-between mb-16">
+                    <div className="flex items-center gap-4">
+                      <img src={AIGODS_LOGO_URL} className="w-12 h-12 md:w-20 md:h-20 rounded-full border border-white/10 shadow-2xl" onError={handleImageError} />
+                      <div>
+                        <h2 className="text-xl md:text-3xl font-black italic text-white uppercase leading-none">FAQ</h2>
+                        <span className="text-[8px] md:text-[10px] font-black text-cyan-400 uppercase tracking-[0.3em] mt-1 block">FREQUENTLY ASKED QUESTIONS</span>
+                      </div>
+                    </div>
+                    <button onClick={() => setIsFaqOpen(false)} className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center hover:bg-white/10 border border-white/10 transition-all"><X size={24} className="text-gray-400" /></button>
+                 </div>
+
+                 <div className="faq-container w-full max-w-[900px] mx-auto">
+                    {faqItems.map((item, index) => (
+                      <div key={index} className="faq-item border-b border-[#222]">
+                        <button 
+                          className="faq-question w-full text-left p-[15px] text-base font-bold bg-[#0b0f1a] text-white border-none cursor-pointer outline-none transition-all duration-300 hover:bg-[#111827]"
+                          onClick={() => setActiveFaqIndex(activeFaqIndex === index ? null : index)}
+                        >
+                          {item.q}
+                        </button>
+                        <div className={`faq-answer p-[15px] bg-[#111827] text-[#ccc] leading-relaxed ${activeFaqIndex === index ? 'block' : 'hidden'}`}>
+                          <div dangerouslySetInnerHTML={{ __html: item.a }} />
+                        </div>
+                      </div>
+                    ))}
+                 </div>
+
+                 <div className="mt-20 text-center">
+                    <button onClick={() => setIsFaqOpen(false)} className="px-12 py-5 bg-white text-black font-black uppercase text-xs md:text-sm rounded-2xl shadow-xl hover:scale-105 transition-all">CLOSE FAQ</button>
                  </div>
              </div>
           </div>

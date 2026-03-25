@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AIGODS • The Future of Artificial Intelligence</title>
     <meta name="description" content="AIGODS - Decentralized Superintelligence Token. Presale: $0.20 → Listing: $3.50 (17.5x). Backed by BlackRock, Tesla, OpenAI & $10B+."/>
-    <link rel="icon" href="https://img.sanishtech.com/u/bcc6d8573341ba298bb44e4df349397a.png" type="image/png">
+    <link rel="icon" href="/logo.png" type="image/png">
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -219,6 +219,25 @@
         /* Ensure interactive elements are easy to touch */
         button {
           min-height: 44px;
+        }
+
+        .faq-btn {
+          transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          position: relative;
+          overflow: hidden;
+        }
+        .faq-btn::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+          transition: 0.5s;
+        }
+        .faq-btn:hover::after {
+          left: 100%;
         }
       }
     </style>

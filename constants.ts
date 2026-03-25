@@ -1,4 +1,4 @@
-export const AIGODS_LOGO_URL = 'https://img.sanishtech.com/u/bcc6d8573341ba298bb44e4df349397a.png';
+export const AIGODS_LOGO_URL = '/logo.png';
 
 export const PROXY_CONTRACT_ADDRESS = '0xACe6De8F6c453882074cd796d3ae6A070777d65e';
 
@@ -1631,7 +1631,7 @@ export const SYSTEM_INSTRUCTION = `
 `;
 
 export const LOGO_DATA = [
-  { name: 'AI', url: 'https://img.sanishtech.com/u/bcc6d8573341ba298bb44e4df349397a.png' },
+  { name: 'AI', url: '/logo.png' },
   { name: 'BL', url: 'https://upload.wikimedia.org/wikipedia/commons/b/b7/BlackRock_wordmark.svg' },
   { name: 'Tesla', url: 'https://upload.wikimedia.org/wikipedia/commons/b/bd/Tesla_Motors.svg' },
   { name: 'OpenAI', url: 'https://upload.wikimedia.org/wikipedia/commons/4/4d/OpenAI_Logo.svg' },
