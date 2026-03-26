@@ -1,4 +1,4 @@
-export const AIGODS_LOGO_URL = '/logo.png';
+export const AIGODS_LOGO_URL = 'https://i.imgur.com/GJ4BNah.png';
 
 export const PROXY_CONTRACT_ADDRESS = '0xACe6De8F6c453882074cd796d3ae6A070777d65e';
 
@@ -320,7 +320,7 @@ export const CONTRACT_ABI = [
 			{
 				"indexed": false,
 				"internalType": "uint256",
-				"name": "maticAmount",
+				"name": "bnbAmount",
 				"type": "uint256"
 			},
 			{
@@ -481,7 +481,7 @@ export const CONTRACT_ABI = [
 	},
 	{
 		"inputs": [],
-		"name": "CHAINLINK_MATIC_USD",
+		"name": "CHAINLINK_BNB_USD",
 		"outputs": [
 			{
 				"internalType": "address",
@@ -598,7 +598,7 @@ export const CONTRACT_ABI = [
 	},
 	{
 		"inputs": [],
-		"name": "MIN_MATIC_OUT",
+		"name": "MIN_BNB_OUT",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -1631,7 +1631,7 @@ export const SYSTEM_INSTRUCTION = `
 `;
 
 export const LOGO_DATA = [
-  { name: 'AI', url: '/logo.png' },
+  { name: 'AI', url: 'https://i.imgur.com/GJ4BNah.png' },
   { name: 'BL', url: 'https://upload.wikimedia.org/wikipedia/commons/b/b7/BlackRock_wordmark.svg' },
   { name: 'Tesla', url: 'https://upload.wikimedia.org/wikipedia/commons/b/bd/Tesla_Motors.svg' },
   { name: 'OpenAI', url: 'https://upload.wikimedia.org/wikipedia/commons/4/4d/OpenAI_Logo.svg' },
@@ -1640,11 +1640,10 @@ export const LOGO_DATA = [
   { name: 'Apple', url: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg' },
   { name: 'Microsoft', url: 'https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg' },
   { name: 'Meta', url: 'https://upload.wikimedia.org/wikipedia/commons/7/7b/Meta_Platforms_Inc._logo.svg' },
-  { name: 'Binance', url: 'https://upload.wikimedia.org/wikipedia/commons/f/fc/Binance_Logo.svg' },
   { name: 'CO', url: 'https://upload.wikimedia.org/wikipedia/commons/e/e8/Coinbase_Wordmark.svg' },
   { name: 'Ethereum', url: 'https://upload.wikimedia.org/wikipedia/commons/0/05/Ethereum_logo_2014.svg' },
   { name: 'Solana', url: 'https://upload.wikimedia.org/wikipedia/en/b/b9/Solana_logo.png' },
-  { name: 'Polygon', url: 'https://upload.wikimedia.org/wikipedia/commons/8/8c/Polygon_Logo.svg' },
+  { name: 'Binance Smart Chain', url: 'https://upload.wikimedia.org/wikipedia/commons/f/fc/Binance_Logo.svg' },
   { name: 'Uniswap', url: 'https://upload.wikimedia.org/wikipedia/commons/e/e7/Uniswap_Logo.svg' },
   { name: 'Metamask', url: 'https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg' },
   { name: 'Phantom', url: 'https://cryptologos.cc/logos/phantom-phantom-logo.png' }

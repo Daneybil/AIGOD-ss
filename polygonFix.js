@@ -4,39 +4,39 @@ import { ethers } from "ethers";
 // NETWORK CONFIG
 //////////////////////////////////////////////////
 
-const POLYGON_CHAIN = {
-  chainId: "0x89",
-  chainName: "Polygon Mainnet",
+const BSC_CHAIN = {
+  chainId: "0x38",
+  chainName: "Binance Smart Chain",
   nativeCurrency: {
-    name: "MATIC",
-    symbol: "MATIC",
+    name: "BNB",
+    symbol: "BNB",
     decimals: 18
   },
-  rpcUrls: ["https://polygon-rpc.com"],
-  blockExplorerUrls: ["https://polygonscan.com"]
+  rpcUrls: ["https://bsc-dataseed.binance.org/"],
+  blockExplorerUrls: ["https://bscscan.com"]
 };
 
 //////////////////////////////////////////////////
 // FORCE NETWORK SWITCH
 //////////////////////////////////////////////////
 
-export async function forcePolygon() {
+export async function forceBSC() {
   if (!window.ethereum) throw new Error("No wallet");
 
   try {
     const chainId = await window.ethereum.request({ method: "eth_chainId" });
-    if (chainId === POLYGON_CHAIN.chainId) return;
+    if (chainId === BSC_CHAIN.chainId) return;
 
     await window.ethereum.request({
       method: "wallet_switchEthereumChain",
-      params: [{ chainId: POLYGON_CHAIN.chainId }]
+      params: [{ chainId: BSC_CHAIN.chainId }]
     });
   } catch (switchError) {
     if (switchError.code === 4902) {
       try {
         await window.ethereum.request({
           method: "wallet_addEthereumChain",
-          params: [POLYGON_CHAIN]
+          params: [BSC_CHAIN]
         });
       } catch (addError) {
         throw addError;

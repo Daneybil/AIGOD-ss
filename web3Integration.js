@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { forcePolygon, safeContractCall } from "./polygonFix.js";
+import { forceBSC, safeContractCall } from "./polygonFix.js";
 import { PROXY_CONTRACT_ADDRESS, CONTRACT_ABI } from "./constants.ts";
 
 const PROXY_ADDRESS = PROXY_CONTRACT_ADDRESS;
@@ -17,7 +17,7 @@ export async function connectWallet() {
     return;
   }
   
-  await forcePolygon();
+  await forceBSC();
   
   try {
     provider = new ethers.BrowserProvider(window.ethereum);
@@ -33,7 +33,7 @@ export async function connectWallet() {
     // Check if contract exists on this network
     const code = await provider.getCode(PROXY_ADDRESS);
     if (code === "0x" || code === "0x0") {
-       throw new Error(`Contract not found at ${PROXY_ADDRESS}. Please ensure you are on the correct network (Polygon Mainnet).`);
+       throw new Error(`Contract not found at ${PROXY_ADDRESS}. Please ensure you are on the correct network (Binance Smart Chain).`);
     }
 
     contract = new ethers.Contract(PROXY_ADDRESS, ABI, signer);
@@ -106,7 +106,7 @@ export async function claimAirdrop() {
   }
 }
 
-export async function buyPresale(amountMATIC) {
+export async function buyPresale(amountBNB) {
   try {
     const address = await connectWallet();
     if (!address) return;
@@ -140,7 +140,7 @@ export async function buyPresale(amountMATIC) {
     const tx = await contract.buyPreSale(
       ref,
       {
-        value: ethers.parseEther(amountMATIC.toString())
+        value: ethers.parseEther(amountBNB.toString())
       }
     );
 
@@ -191,7 +191,7 @@ export async function loadLeaderboard() {
         const browserProvider = new ethers.BrowserProvider(window.ethereum);
         fetchContract = new ethers.Contract(PROXY_ADDRESS, ABI, browserProvider);
       } else {
-        const readProvider = new ethers.JsonRpcProvider("https://polygon-rpc.com/");
+        const readProvider = new ethers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
         fetchContract = new ethers.Contract(PROXY_ADDRESS, ABI, readProvider);
       }
     } catch (e) {
@@ -211,19 +211,6 @@ export async function loadLeaderboard() {
     }
   } catch (err) {
     console.error("Leaderboard fetch failed:", err.message);
-    // If it fails on Polygon, maybe it's on BSC?
-    if (!contract) {
-       try {
-         const bscProvider = new ethers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
-         const bscContract = new ethers.Contract(PROXY_ADDRESS, ABI, bscProvider);
-         const [addresses, counts] = await bscContract.getTopReferrers();
-         const detailedData = addresses.map((addr, index) => ({
-           address: addr,
-           referrals: Number(counts[index])
-         })).filter(item => item.address !== ethers.ZeroAddress);
-         if (window.renderLeaderboard) window.renderLeaderboard(detailedData);
-       } catch (e) {}
-    }
   }
 }
 

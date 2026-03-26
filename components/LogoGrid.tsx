@@ -15,7 +15,7 @@ const LogoGrid: React.FC = () => {
               src={logo.url} 
               alt={logo.name} 
               className={`max-h-full max-w-full object-contain ${
-                ['Apple', 'X', 'OpenAI', 'BL', 'Meta', 'Microsoft', 'CO', 'Ethereum', 'Solana', 'Polygon', 'Phantom'].includes(logo.name) 
+                ['Apple', 'X', 'OpenAI', 'BL', 'Meta', 'Microsoft', 'CO', 'Ethereum', 'Solana', 'Phantom'].includes(logo.name) 
                   ? 'filter invert brightness-200' 
                   : ''
               }`}

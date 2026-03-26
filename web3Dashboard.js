@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import { PROXY_CONTRACT_ADDRESS, CONTRACT_ABI } from "./constants.ts";
-import { forcePolygon } from "./polygonFix.js";
+import { forceBSC } from "./polygonFix.js";
 
 const CONTRACT_ADDRESS = PROXY_CONTRACT_ADDRESS;
 const ABI = CONTRACT_ABI;
@@ -48,7 +48,7 @@ export async function connectWallet() {
   }
 
   try {
-    await forcePolygon();
+    await forceBSC();
     const provider = new ethers.BrowserProvider(window.ethereum);
     
     // Check if already connected to avoid unnecessary popups
@@ -62,7 +62,7 @@ export async function connectWallet() {
     // Check if contract exists on this network
     const code = await provider.getCode(CONTRACT_ADDRESS);
     if (code === "0x" || code === "0x0") {
-       throw new Error(`Contract not found at ${CONTRACT_ADDRESS}. Please ensure you are on the correct network (Polygon Mainnet).`);
+       throw new Error(`Contract not found at ${CONTRACT_ADDRESS}. Please ensure you are on the correct network (Binance Smart Chain).`);
     }
 
     const contract = new ethers.Contract(
@@ -280,8 +280,8 @@ export async function addTokenToWallet() {
   const tokenAddress = CONTRACT_ADDRESS;
   const tokenSymbol = "AIGODS";
   const tokenDecimals = 18;
-  const tokenImage = "https://via.placeholder.com/200";
-  const targetChainId = "0x89"; // Polygon Mainnet (0x38 for BSC in future)
+  const targetChainId = "0x38"; // Binance Smart Chain (0x38 for BSC)
+  const tokenImage = "https://i.imgur.com/GJ4BNah.png";
 
   try {
     // Check current network
@@ -300,10 +300,10 @@ export async function addTokenToWallet() {
             method: "wallet_addEthereumChain",
             params: [{
               chainId: targetChainId,
-              chainName: "Polygon Mainnet",
-              rpcUrls: ["https://polygon-rpc.com/"],
-              nativeCurrency: { name: "MATIC", symbol: "MATIC", decimals: 18 },
-              blockExplorerUrls: ["https://polygonscan.com/"]
+              chainName: "Binance Smart Chain",
+              rpcUrls: ["https://bsc-dataseed.binance.org/"],
+              nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
+              blockExplorerUrls: ["https://bscscan.com/"]
             }]
           });
         } else {

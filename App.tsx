@@ -97,9 +97,9 @@ const getBadge = (rank: number) => {
   return "ELITE";
 };
 
-const LOGO_FALLBACK = "/logo.png";
+const LOGO_FALLBACK = "https://i.imgur.com/GJ4BNah.png";
 
-const POLYGON_CHAIN_ID = 137; // Polygon Mainnet Decimal
+const BSC_CHAIN_ID = 56; // Binance Smart Chain Decimal
 
 const faqItems = [
   {
@@ -196,7 +196,6 @@ const App: React.FC = () => {
   const tokenPrices: Record<string, number> = {
     'BNB': 600,
     'SOL': 150,
-    'MATIC': 0.70,
     'USD': 1
   };
 
@@ -262,14 +261,14 @@ const App: React.FC = () => {
     }
   };
 
-  // Helper to ensure user is on Polygon Mainnet
-  const ensurePolygonNetwork = async (provider: ethers.BrowserProvider) => {
+  // Helper to ensure user is on Binance Smart Chain
+  const ensureBSCNetwork = async (provider: ethers.BrowserProvider) => {
     const network = await provider.getNetwork();
-    if (Number(network.chainId) !== POLYGON_CHAIN_ID) {
+    if (Number(network.chainId) !== BSC_CHAIN_ID) {
       try {
         await (window as any).ethereum.request({
           method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x89' }], // 137 in hex
+          params: [{ chainId: '0x38' }], // 56 in hex
         });
         return new ethers.BrowserProvider((window as any).ethereum);
       } catch (switchError: any) {
@@ -279,20 +278,20 @@ const App: React.FC = () => {
               method: 'wallet_addEthereumChain',
               params: [
                 {
-                  chainId: '0x89',
-                  chainName: 'Polygon Mainnet',
-                  nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
-                  rpcUrls: ['https://polygon-rpc.com/'],
-                  blockExplorerUrls: ['https://polygonscan.com/'],
+                  chainId: '0x38',
+                  chainName: 'Binance Smart Chain',
+                  nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+                  rpcUrls: ['https://bsc-dataseed.binance.org/'],
+                  blockExplorerUrls: ['https://bscscan.com/'],
                 },
               ],
             });
             return new ethers.BrowserProvider((window as any).ethereum);
           } catch (addError) {
-            throw new Error("Could not add Polygon network to your wallet.");
+            throw new Error("Could not add Binance Smart Chain to your wallet.");
           }
         }
-        throw new Error("Please switch to Polygon Mainnet to continue.");
+        throw new Error("Please switch to Binance Smart Chain to continue.");
       }
     }
     return provider;
@@ -323,12 +322,12 @@ const App: React.FC = () => {
   };
 
   const handleBuyPresale = async () => {
-    const maticAmount = buyInput || "0.0";
-    if (parseFloat(maticAmount) <= 0) {
+    const bnbAmount = buyInput || "0.0";
+    if (parseFloat(bnbAmount) <= 0) {
       alert("Please enter a valid amount to buy.");
       return;
     }
-    await web3Buy(maticAmount);
+    await web3Buy(bnbAmount);
     setBuyInput("");
   };
 
@@ -363,10 +362,10 @@ const App: React.FC = () => {
   };
 
   const handleDashboardBuy = async () => {
-    const maticAmount = buyInput || "0.0";
-    await dashboardBuy(activeReferrer, maticAmount);
+    const bnbAmount = buyInput || "0.0";
+    await dashboardBuy(activeReferrer, bnbAmount);
     // After successful purchase, prompt to add token
-    if (parseFloat(maticAmount) > 0) {
+    if (parseFloat(bnbAmount) > 0) {
       await dashboardAddToken();
     }
   };
@@ -471,7 +470,7 @@ const App: React.FC = () => {
               <span className="truncate max-w-[80px] md:max-w-none">{connectedAddress ? `${connectedAddress.slice(0,6)}...` : 'Connect'}</span>
               {connectedAddress && (
                 <div className="flex flex-col items-start">
-                  <span className="text-[7px] md:text-[8px] text-cyan-500/60 mt-1 uppercase">{walletBalance} MATIC</span>
+                  <span className="text-[7px] md:text-[8px] text-cyan-500/60 mt-1 uppercase">{walletBalance} BNB</span>
                   <span className="text-[7px] md:text-[8px] text-yellow-500/60 mt-0.5 uppercase">{tokenBalance} AIGODS</span>
                 </div>
               )}
@@ -624,7 +623,7 @@ const App: React.FC = () => {
              </span>
              {connectedAddress && (
                <span className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">
-                 BALANCE: {walletBalance} MATIC
+                 BALANCE: {walletBalance} BNB
                </span>
              )}
            </div>
@@ -651,7 +650,6 @@ const App: React.FC = () => {
                  >
                    <option>BNB</option>
                    <option>SOL</option>
-                   <option>MATIC</option>
                  </select>
               </div>
            </div>
@@ -679,7 +677,7 @@ const App: React.FC = () => {
 
         <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4 mb-10 px-2">
            <button onClick={() => setIsWalletModalOpen(true)} className="px-4 py-2 md:px-6 md:py-4 bg-[#f3ba2f] text-black rounded-xl font-black text-[8px] md:text-[10px] uppercase tracking-widest shadow-lg">BNB CHAIN</button>
-           <button onClick={() => setIsWalletModalOpen(true)} className="px-4 py-2 md:px-6 md:py-4 bg-[#0a0a14] border border-gray-800 text-white rounded-xl font-black text-[8px] md:text-[10px] uppercase tracking-widest">POLYGON</button>
+            <button onClick={() => setIsWalletModalOpen(true)} className="px-4 py-2 md:px-6 md:py-4 bg-[#f3ba2f] text-black rounded-xl font-black text-[8px] md:text-[10px] uppercase tracking-widest shadow-lg">BNB CHAIN</button>
            <button onClick={() => setIsWalletModalOpen(true)} className="px-4 py-2 md:px-6 md:py-4 bg-[#0a0a14] border border-gray-800 text-white rounded-xl font-black text-[8px] md:text-[10px] uppercase tracking-widest">SOLANA</button>
            <button onClick={() => window.open('https://ramp.network/buy/', '_blank')} className="px-4 py-2 md:px-6 md:py-4 bg-[#0a0a14] border border-gray-800 text-white rounded-xl font-black text-[8px] md:text-[10px] uppercase tracking-widest flex items-center gap-2">
               <CardIcon size={12} className="md:w-[14px]" /> <span className="hidden xs:inline">DEBIT/CREDIT</span>
@@ -689,7 +687,7 @@ const App: React.FC = () => {
         <div id="buy-input-section" className="w-full max-w-2xl flex flex-col md:flex-row gap-3 md:gap-4 mb-10 px-2">
            <input 
              type="text"
-             placeholder="Amount (MATIC/USDT)"
+             placeholder="Amount (BNB/USDT)"
              className="flex-1 bg-black/60 border border-gray-800 rounded-2xl md:rounded-[1.5rem] p-5 md:p-6 text-white font-bold outline-none"
              value={buyInput}
              onChange={(e) => setBuyInput(e.target.value)}
@@ -716,12 +714,6 @@ const App: React.FC = () => {
               CLAIM AIRDROP (DASHBOARD)
             </button>
             <button 
-              onClick={handleDashboardBuy}
-              className="w-full py-5 md:py-7 bg-[#8b2cf5] text-white font-black rounded-2xl md:rounded-[2rem] hover:scale-[1.02] transition-all uppercase text-sm md:text-2xl tracking-tighter shadow-lg"
-            >
-              BUY PRESALE (DASHBOARD)
-            </button>
-            <button 
               onClick={handleAddTokenToWallet}
               className="w-full py-5 md:py-7 bg-[#f3ba2f] text-black font-black rounded-2xl md:rounded-[2rem] hover:scale-[1.02] transition-all uppercase text-sm md:text-2xl tracking-tighter shadow-lg"
             >
@@ -736,7 +728,7 @@ const App: React.FC = () => {
             <div className="p-6 md:p-10 bg-black/40 rounded-2xl md:rounded-[2rem] border border-gray-800/40 flex items-center justify-between shadow-inner">
               <span className="text-gray-400 text-xs md:text-xl uppercase font-black tracking-tighter">TOKEN BALANCE:</span>
               <div className="flex items-baseline gap-2">
-                <span id="userTokenBalance" className="text-[#f3ba2f] text-4xl md:text-6xl font-black italic">{tokenBalance}</span>
+                <span id="userTokenBalance" className="text-[#f3ba2f] text-2xl md:text-4xl font-black italic">{tokenBalance}</span>
                 <span className="text-gray-500 text-xs md:text-sm font-black italic">AIGODS</span>
               </div>
             </div>
@@ -836,12 +828,12 @@ const App: React.FC = () => {
           color: 'white',
         }}>
           <h2 className="text-2xl md:text-4xl font-black uppercase tracking-tighter" style={{ marginBottom: '15px' }}>
-            Buy MATIC Instantly with MoonPay
+            Buy BNB Instantly with MoonPay
           </h2>
           <p style={{ maxWidth: '700px', margin: 'auto', lineHeight: '1.6', opacity: '0.9' }} className="text-xs md:text-base font-medium">
-            Don’t have MATIC yet? You can instantly purchase MATIC using your debit or credit card
-            through our secure MoonPay gateway. After buying MATIC, participate
-            in the AI GODS pre-sale directly on Polygon.
+            Don’t have BNB yet? You can instantly purchase BNB using your debit or credit card
+            through our secure MoonPay gateway. After buying BNB, participate
+            in the AI GODS pre-sale directly on Binance Smart Chain.
           </p>
           <p style={{ maxWidth: '700px', margin: '15px auto', fontSize: '12px', opacity: '0.8' }} className="font-bold uppercase tracking-widest text-gray-400">
             MoonPay is a trusted global crypto payment provider worldwide.
@@ -866,10 +858,10 @@ const App: React.FC = () => {
              onMouseOver={(e) => { (e.currentTarget as any).style.transform='scale(1.05)'; }}
              onMouseOut={(e) => { (e.currentTarget as any).style.transform='scale(1)'; }}
           >
-            Buy MATIC with MoonPay
+            Buy BNB with MoonPay
           </a>
           <div className="mt-8 text-[9px] md:text-[11px] text-gray-500 max-w-lg mx-auto leading-relaxed font-bold uppercase">
-            MoonPay allows users to purchase cryptocurrency instantly using debit or credit cards. If you don’t already own MATIC, buy it securely through MoonPay and then use it to participate in the pre-sale on Polygon Mainnet.
+            MoonPay allows users to purchase cryptocurrency instantly using debit or credit cards. If you don’t already own BNB, buy it securely through MoonPay and then use it to participate in the pre-sale on Binance Smart Chain.
           </div>
         </section>
 
@@ -1181,7 +1173,7 @@ const App: React.FC = () => {
                    <div className="p-8 md:p-10 bg-[#0a0a0f] rounded-[2.5rem] border border-white/5 relative overflow-hidden">
                       <div className="flex items-center gap-3 mb-8"><div className="w-6 h-6 rounded bg-pink-500 flex items-center justify-center text-black font-black text-xs">2</div><h4 className="text-base md:text-xl font-black italic text-white uppercase">TOKEN DETAILS</h4></div>
                       <div className="space-y-4">
-                        {[ { l: 'TOKEN NAME', v: 'AI GODS COIN' }, { l: 'SYMBOL', v: 'AIGODS' }, { l: 'TOTAL SUPPLY', v: '700,000,000' }, { l: 'DECIMALS', v: '18' }, { l: 'BLOCKCHAIN', v: 'Polygon' } ].map(item => (
+                        {[ { l: 'TOKEN NAME', v: 'AI GODS COIN' }, { l: 'SYMBOL', v: 'AIGODS' }, { l: 'TOTAL SUPPLY', v: '700,000,000' }, { l: 'DECIMALS', v: '18' }, { l: 'BLOCKCHAIN', v: 'Binance Smart Chain' } ].map(item => (
                           <div key={item.l} className="flex justify-between items-center border-b border-white/5 pb-2"><span className="text-[8px] font-black text-gray-500 uppercase">{item.l}</span><span className="text-[10px] md:text-[12px] font-black text-white">{item.v}</span></div>
                         ))}
                       </div>
@@ -1200,7 +1192,7 @@ const App: React.FC = () => {
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
                     <div className="p-8 md:p-12 bg-[#0a0a0f] rounded-[2.5rem] border border-white/5 group hover:border-cyan-400/20 transition-all">
                        <h4 className="text-lg md:text-2xl font-black italic text-cyan-400 uppercase mb-4 leading-tight">4. EASY PURCHASE OPTIONS</h4>
-                       <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest mb-10 leading-relaxed">Buy with <span className="text-white italic">MATIC on Polygon Mainnet</span>. No crypto? No problem. Purchase instantly using <span className="text-white">Debit or Credit Card</span>. Tokens reflect automatically.</p>
+                       <p className="text-[10px] md:text-xs font-bold text-gray-400 uppercase tracking-widest mb-10 leading-relaxed">Buy with <span className="text-white italic">BNB on Binance Smart Chain</span>. No crypto? No problem. Purchase instantly using <span className="text-white">Debit or Credit Card</span>. Tokens reflect automatically.</p>
                        <button onClick={() => { setIsWhitepaperOpen(false); setTimeout(() => document.getElementById('moonpay-buy-section')?.scrollIntoView({behavior:'smooth'}), 300); }} className="w-full py-5 bg-cyan-400 text-black font-black uppercase text-[10px] md:text-xs rounded-2xl shadow-[0_0_30px_rgba(34,211,238,0.3)] group-hover:scale-105 transition-all">BUY AIGODS NOW</button>
                     </div>
                     <div className="p-8 md:p-12 bg-[#0a0a0f] rounded-[2.5rem] border border-white/5 group hover:border-green-500/20 transition-all">
