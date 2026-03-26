@@ -13,21 +13,20 @@ const zeroAddress = "0x0000000000000000000000000000000000000000";
 
 export async function connectWallet() {
   if (!window.ethereum) {
-    alert("MetaMask is required.");
+    alert("No crypto wallet found. Please install MetaMask or Trust Wallet.");
     return;
   }
   
-  await forceBSC();
-  
   try {
-    provider = new ethers.BrowserProvider(window.ethereum);
-    
-    // Check if already connected
-    const accounts = await provider.listAccounts();
-    if (accounts.length === 0) {
-      await provider.send("eth_requestAccounts", []);
+    // Request accounts directly to ensure connection
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    if (!accounts || accounts.length === 0) {
+      throw new Error("No accounts found.");
     }
+
+    await forceBSC();
     
+    provider = new ethers.BrowserProvider(window.ethereum);
     signer = await provider.getSigner();
     
     // Check if contract exists on this network
@@ -42,6 +41,9 @@ export async function connectWallet() {
     return address;
   } catch (err) {
     console.error("Connection error:", err.message);
+    if (err.code !== 4001) { // 4001 is user rejection
+      alert("Connection error: " + (err.reason || err.message));
+    }
     return null;
   }
 }
