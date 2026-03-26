@@ -18,6 +18,31 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
+      },
+      build: {
+        minify: 'terser',
+        terserOptions: {
+          compress: {
+            drop_console: true,
+            drop_debugger: true,
+            pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn']
+          },
+          mangle: {
+            toplevel: true,
+            safari10: true
+          },
+          format: {
+            comments: false
+          }
+        },
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              vendor: ['react', 'react-dom', 'ethers', 'lucide-react']
+            }
+          }
+        },
+        chunkSizeWarningLimit: 1000
       }
     };
 });

@@ -179,9 +179,9 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
   };
 
   return (
-    <div className="fixed bottom-8 right-8 z-[60] flex flex-col items-end">
+    <div className="fixed bottom-4 right-4 md:bottom-8 md:right-8 z-[60] flex flex-col items-end">
       {!isOpen && (
-        <button onClick={() => {setIsOpen(true); setIsMinimized(false);}} className="relative w-24 h-24 md:w-32 md:h-32 group hover:scale-110 transition-all cursor-pointer">
+        <button onClick={() => {setIsOpen(true); setIsMinimized(false);}} className="relative w-20 h-20 md:w-32 md:h-32 group hover:scale-110 transition-all cursor-pointer">
           <div className="absolute inset-0 bg-cyan-500/30 rounded-full blur-2xl animate-pulse"></div>
           <div className="relative w-full h-full rounded-full border-4 border-cyan-400 bg-[#0a0a0f] flex items-center justify-center overflow-hidden">
             <img 
@@ -196,8 +196,8 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
       )}
 
       {isOpen && (
-        <div className={`flex flex-col bg-[#050508] border border-gray-800 rounded-[3rem] shadow-2xl overflow-hidden transition-all ${isFullScreen ? 'fixed inset-4' : isMinimized ? 'h-20 w-80' : 'w-[90vw] md:w-[480px] h-[75vh]'}`}>
-          <div className="p-6 bg-gray-900/60 border-b border-gray-800 flex items-center justify-between">
+        <div className={`flex flex-col bg-[#050508] border border-gray-800 rounded-[2rem] md:rounded-[3rem] shadow-2xl overflow-hidden transition-all ${isFullScreen ? 'fixed inset-4' : isMinimized ? 'h-20 w-80' : 'w-[90vw] md:w-[480px] h-[65vh] md:h-[75vh] max-h-[550px] md:max-h-none'}`}>
+          <div className="p-4 md:p-6 bg-gray-900/60 border-b border-gray-800 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full border-2 border-cyan-400 overflow-hidden">
                 <img 
@@ -236,14 +236,14 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
                 )}
               </div>
 
-              <div className="p-8 bg-gray-900/40 border-t border-gray-800">
+              <div className="p-4 md:p-8 bg-gray-900/40 border-t border-gray-800">
                 {selectedImage && <div className="relative mb-4 inline-block"><img src={selectedImage} className="w-16 h-16 rounded-xl" /><button onClick={() => setSelectedImage(null)} className="absolute -top-2 -right-2 bg-red-500 p-1 rounded-full"><X size={10} className="text-white"/></button></div>}
-                <div className="flex items-center gap-4">
-                  <button onClick={() => fileInputRef.current?.click()} className="p-4 bg-gray-800 rounded-2xl text-white"><ImageIcon size={24} /></button>
+                <div className="flex items-center gap-2 md:gap-4">
+                  <button onClick={() => fileInputRef.current?.click()} className="p-3 md:p-4 bg-gray-800 rounded-2xl text-white"><ImageIcon size={20} className="md:w-6 md:h-6" /></button>
                   <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/*" />
-                  <button onClick={startVoiceCall} className={`p-4 rounded-2xl text-white ${isInCall ? 'bg-green-500' : 'bg-gray-800'}`}><Phone size={24} /></button>
-                  <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} className="flex-1 bg-black rounded-2xl p-4 text-white focus:outline-none" placeholder="Ask AIGODS..." />
-                  <button onClick={handleSendMessage} className="p-4 bg-cyan-500 text-black rounded-2xl"><Send size={24} /></button>
+                  <button onClick={startVoiceCall} className={`p-3 md:p-4 rounded-2xl text-white ${isInCall ? 'bg-green-500' : 'bg-gray-800'}`}><Phone size={20} className="md:w-6 md:h-6" /></button>
+                  <input type="text" value={inputText} onChange={(e) => setInputText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()} className="flex-1 bg-black rounded-2xl p-3 md:p-4 text-white text-sm focus:outline-none" placeholder="Ask AIGODS..." />
+                  <button onClick={handleSendMessage} className="p-3 md:p-4 bg-cyan-500 text-black rounded-2xl"><Send size={20} className="md:w-6 md:h-6" /></button>
                 </div>
               </div>
             </>

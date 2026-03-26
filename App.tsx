@@ -1125,14 +1125,16 @@ const App: React.FC = () => {
              </div>
              <div className="grid grid-cols-2 gap-4 w-full">
                {[
-                 { name: 'MetaMask', icon: 'https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg' },
-                 { name: 'WalletConnect', icon: 'https://raw.githubusercontent.com/WalletConnect/walletconnect-assets/master/Logo/Blue%20(Default)/Logo.svg' },
-                 { name: 'Phantom', icon: 'https://raw.githubusercontent.com/phantom-labs/brand-assets/main/logos/icon/purple.svg' },
-                 { name: 'Trust Wallet', icon: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/binance/info/logo.png' }
+                 { name: 'MetaMask', icon: 'data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMzAgMzAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTEzLjg1IDUuNTVsLTUuNTUgNS41NSAxLjQxIDEuNDEgNC4xNC00LjE0IDQuMTQgNC4xNCAxLjQxLTEuNDEtNS41NS01LjU1eiIgZmlsbD0iI0Y2ODUxRSIvPjwvc3ZnPg==' },
+                 { name: 'Trust Wallet', icon: 'data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMzAgMzAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTE1IDJhMTMgMTMgMCAxIDAgMTMgMTNBMTMgMTMgMCAwIDAgMTUgMnoiIGZpbGw9IiMzMzk5RkYiLz48L3N2Zz4=' },
+                 { name: 'WalletConnect', icon: 'data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMzAgMzAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTE1IDJhMTMgMTMgMCAxIDAgMTMgMTNBMTMgMTMgMCAwIDAgMTUgMnoiIGZpbGw9IiMzMzk5RkYiLz48L3N2Zz4=' },
+                 { name: 'Phantom', icon: 'data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMzAgMzAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTE1IDJhMTMgMTMgMCAxIDAgMTMgMTNBMTMgMTMgMCAwIDAgMTUgMnoiIGZpbGw9IiNBQjY3RkUiLz48L3N2Zz4=' },
+                 { name: 'Coinbase', icon: 'data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMzAgMzAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTE1IDJhMTMgMTMgMCAxIDAgMTMgMTNBMTMgMTMgMCAwIDAgMTUgMnoiIGZpbGw9IiMwMDUyRkYiLz48L3N2Zz4=' },
+                 { name: 'SafePal', icon: 'data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMzAgMzAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTE1IDJhMTMgMTMgMCAxIDAgMTMgMTNBMTMgMTMgMCAwIDAgMTUgMnoiIGZpbGw9IiMwMEI4RkYiLz48L3N2Zz4=' }
                ].map(w => (
                  <button key={w.name} onClick={() => connectWalletHandler()} className="flex flex-col items-center justify-center gap-5 p-6 bg-white/5 border border-white/10 rounded-[2rem] hover:bg-[#1a1a2e] hover:border-cyan-500/60 transition-all duration-300 group min-h-[160px] shadow-2xl">
                     <div className="w-16 h-16 md:w-20 md:h-20 flex items-center justify-center">
-                      <img src={w.icon} className="max-w-full max-h-full group-hover:scale-110 transition-transform duration-300 brightness-125 contrast-125 object-contain" alt={w.name} />
+                      <img src={w.icon} className="max-w-full max-h-full group-hover:scale-110 transition-transform duration-300 brightness-125 contrast-125 object-contain" alt={w.name} referrerPolicy="no-referrer" />
                     </div>
                     <span className="font-black text-gray-300 group-hover:text-white uppercase text-[10px] md:text-[12px] tracking-widest text-center">{w.name}</span>
                  </button>
