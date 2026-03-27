@@ -29,13 +29,14 @@ import {
   Share,
   Rocket,
   Target,
-  Megaphone
+  Megaphone,
+  Calculator
 } from 'lucide-react';
 import { ethers } from "ethers";
 import LogoGrid from './components/LogoGrid.tsx';
 import ParticleBackground from './components/ParticleBackground.tsx';
 import ChatAssistant from './components/ChatAssistant.tsx';
-import { AIGODS_LOGO_URL, PROXY_CONTRACT_ADDRESS, CONTRACT_ABI } from './constants.ts';
+import { AIGODS_LOGO_URL, PROXY_CONTRACT_ADDRESS, CONTRACT_ABI, FIREBASE_CONFIG, BSC_RPC_URLS, BG_LOGO_TOP, BG_LOGO_CENTER, BG_LOGO_BOTTOM } from './constants.ts';
 
 // New Web3 Integration Imports
 import { 
@@ -60,19 +61,8 @@ import { getAnalytics } from "firebase/analytics";
 import { getFirestore, doc, setDoc, getDoc, updateDoc, collection, getDocs, query, orderBy, limit, enableIndexedDbPersistence, onSnapshot, increment, addDoc } 
 from "firebase/firestore";
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyD-TLeC7XjRLQXPRgnkP4Bz7G8LUw3NLJM",
-  authDomain: "aigod-s-coin-official.firebaseapp.com",
-  projectId: "aigod-s-coin-official",
-  storageBucket: "aigod-s-coin-official.firebasestorage.app",
-  messagingSenderId: "847357583010",
-  appId: "1:847357583010:web:325ee2979d3e8a026dc1fb",
-  measurementId: "G-7KF108XF9X"
-};
-
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+const app = initializeApp(FIREBASE_CONFIG);
 const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 const db = getFirestore(app);
 
@@ -157,6 +147,10 @@ const faqItems = [
 ];
 
 const App: React.FC = () => {
+  const LAUNCH_PRICE = 3.50;
+  const STAGE_1_PRICE = 0.20;
+  const STAGE_2_PRICE = 0.80;
+
   const [calcAmount, setCalcAmount] = useState<string>('0.0');
   const [calcChain, setCalcChain] = useState<string>('BNB');
   const [calcStage, setCalcStage] = useState<string>('Stage 1 ($0.20)');
@@ -170,6 +164,22 @@ const App: React.FC = () => {
   const [isWhitepaperOpen, setIsWhitepaperOpen] = useState(false);
   const [isFaqOpen, setIsFaqOpen] = useState(false);
   const [activeFaqIndex, setActiveFaqIndex] = useState<number | null>(null);
+  
+  // Referral Calculator State
+  const [refCalcAmount, setRefCalcAmount] = useState('1000');
+  const [refCalcStage, setRefCalcStage] = useState<string>('Stage 1 ($0.20)');
+  
+  const refCurrentPrice = useMemo(() => {
+    return refCalcStage.includes('Stage 1') ? STAGE_1_PRICE : STAGE_2_PRICE;
+  }, [refCalcStage, STAGE_1_PRICE, STAGE_2_PRICE]);
+
+  const refCommissionUSD = useMemo(() => {
+    return (parseFloat(refCalcAmount) || 0) * 0.2;
+  }, [refCalcAmount]);
+
+  const refCommissionTokens = useMemo(() => {
+    return refCommissionUSD / refCurrentPrice;
+  }, [refCommissionUSD, refCurrentPrice]);
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
   const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
   const [liveFeedData, setLiveFeedData] = useState<any[]>([]);
@@ -179,6 +189,36 @@ const App: React.FC = () => {
   const [activeReferrer, setActiveReferrer] = useState<string>(localStorage.getItem("aigods_referrer") || ethers.ZeroAddress);
   const [currentUserReferrals, setCurrentUserReferrals] = useState<number>(0);
 
+  // Sync with Web3 Service events
+  useEffect(() => {
+    const handleWeb3Update = (event: any) => {
+      if (event.detail.tokenBalance) setTokenBalance(event.detail.tokenBalance);
+      if (event.detail.referrals !== undefined) setCurrentUserReferrals(event.detail.referrals);
+      if (event.detail.address) setConnectedAddress(event.detail.address);
+    };
+
+    window.addEventListener('web3Update', handleWeb3Update);
+    
+    // Global function for leaderboard rendering
+    (window as any).renderLeaderboard = (data: any[]) => {
+      setLeaderboardData(data);
+    };
+
+    return () => {
+      window.removeEventListener('web3Update', handleWeb3Update);
+      delete (window as any).renderLeaderboard;
+    };
+  }, []);
+
+  // PERSISTENT REFERRAL DETECTION
+  useEffect(() => {
+    captureReferralFromURL();
+    const savedRef = localStorage.getItem("aigods_referrer");
+    if (savedRef && ethers.isAddress(savedRef)) {
+      setActiveReferrer(savedRef);
+    }
+  }, []);
+
   // Social Task States
   const [taskTwitter, setTaskTwitter] = useState(false);
   const [taskTelegram, setTaskTelegram] = useState(false);
@@ -186,10 +226,6 @@ const App: React.FC = () => {
 
   // Airdrop State
   const [claimedWallets, setClaimedWallets] = useState<Set<string>>(new Set());
-
-  const LAUNCH_PRICE = 3.50;
-  const STAGE_1_PRICE = 0.20;
-  const STAGE_2_PRICE = 0.80;
 
   const currentPrice = calcStage.includes('Stage 1') ? STAGE_1_PRICE : STAGE_2_PRICE;
   
@@ -457,6 +493,22 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen w-full relative flex flex-col items-center bg-black overflow-x-hidden pb-10 font-inter text-white">
       <ParticleBackground />
+
+      {/* BACKGROUND LOGOS WITH ZOOM ANIMATION */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        {/* TOP LOGO */}
+        <div className="absolute top-[5%] left-1/2 -translate-x-1/2 w-[50vw] md:w-[35vw] animate-zoom-in-out">
+          <img src={BG_LOGO_TOP} alt="Background Logo Top" className="w-full h-auto filter brightness-75 contrast-125 drop-shadow-[0_0_40px_rgba(0,100,255,0.3)]" onError={handleImageError} />
+        </div>
+        {/* CENTER LOGO */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70vw] md:w-[50vw] animate-zoom-in-out" style={{ animationDelay: '5s' }}>
+          <img src={BG_LOGO_CENTER} alt="Background Logo Center" className="w-full h-auto filter brightness-75 contrast-125 drop-shadow-[0_0_60px_rgba(0,100,255,0.2)]" onError={handleImageError} />
+        </div>
+        {/* BOTTOM LOGO */}
+        <div className="absolute bottom-[5%] left-1/2 -translate-x-1/2 w-[50vw] md:w-[35vw] animate-zoom-in-out" style={{ animationDelay: '10s' }}>
+          <img src={BG_LOGO_BOTTOM} alt="Background Logo Bottom" className="w-full h-auto filter brightness-75 contrast-125 drop-shadow-[0_0_40px_rgba(0,100,255,0.3)]" onError={handleImageError} />
+        </div>
+      </div>
 
       <div className="top-nav-fixed w-full flex items-center justify-between px-4 md:px-10 py-6 z-[50]">
         <div className="flex items-center gap-2 md:gap-6">
@@ -1180,7 +1232,21 @@ const App: React.FC = () => {
                         ))}
                       </div>
                       <p className="text-[7px] md:text-[9px] font-black text-blue-400 mt-2 italic">Other blockchains coming soon after launch.</p>
-                      <div className="mt-8 pt-6 border-t border-white/5"><span className="text-[8px] font-black text-pink-500 uppercase mb-4 block italic">ALLOCATION</span><div className="space-y-3"><div className="p-3 bg-pink-500/10 rounded-xl border border-pink-500/20 flex justify-between items-center"><span className="text-[10px] font-black text-pink-500">80% — Pre-Sale (Community)</span></div><div className="p-3 bg-white/5 rounded-xl border border-white/10 flex justify-between items-center"><span className="text-[10px] font-black text-gray-400">20% — Team & Ecosystem</span></div></div><p className="text-center text-[7px] font-black text-gray-700 uppercase mt-4">PURE COMMUNITY-FIRST DESIGN.</p></div>
+                      <div className="mt-8 pt-6 border-t border-white/5">
+                        <span className="text-[8px] font-black text-pink-500 uppercase mb-4 block italic">ALLOCATION</span>
+                        <div className="space-y-3">
+                          <div className="p-3 bg-pink-500/10 rounded-xl border border-pink-500/20 flex justify-between items-center">
+                            <span className="text-[10px] font-black text-pink-500">60% — Pre-Sale / Airdrop (Community)</span>
+                          </div>
+                          <div className="p-3 bg-white/5 rounded-xl border border-white/10 flex justify-between items-center">
+                            <span className="text-[10px] font-black text-gray-400">20% — Team & Ecosystem</span>
+                          </div>
+                          <div className="p-3 bg-white/5 rounded-xl border border-white/10 flex justify-between items-center">
+                            <span className="text-[10px] font-black text-gray-400">20% — Liquidity & Others</span>
+                          </div>
+                        </div>
+                        <p className="text-center text-[7px] font-black text-gray-700 uppercase mt-4">PURE COMMUNITY-FIRST DESIGN.</p>
+                      </div>
                    </div>
                    <div className="p-8 md:p-10 bg-[#0a0a0f] rounded-[2.5rem] border border-white/5">
                       <div className="flex items-center gap-3 mb-8"><div className="w-6 h-6 rounded bg-yellow-500 flex items-center justify-center text-black font-black text-xs">3</div><h4 className="text-base md:text-xl font-black italic text-white uppercase">PRE-SALE STAGES</h4></div>
@@ -1208,6 +1274,64 @@ const App: React.FC = () => {
                     <h4 className="text-3xl md:text-6xl font-black italic text-[#ff00ff] uppercase mb-6 leading-tight tracking-tighter">6. POWERFUL REFERRAL SYSTEM</h4>
                     <p className="text-[11px] md:text-sm font-bold text-gray-300 uppercase tracking-widest mb-10 max-w-2xl mx-auto leading-relaxed">Promote AI GODS and earn <span className="text-green-500 font-black italic">20% INSTANT REWARDS</span> of every purchase made through your unique link.</p>
                     <button onClick={() => { setIsWhitepaperOpen(false); setIsChallengeModalOpen(true); }} className="px-12 py-5 bg-white text-black font-black uppercase text-xs md:text-sm rounded-2xl shadow-xl hover:scale-105 transition-all">GET REFERRAL LINK</button>
+
+                    {/* REFERRAL EARNINGS CALCULATOR */}
+                    <div className="mt-16 pt-12 border-t border-white/10">
+                      <div className="flex items-center justify-center gap-3 mb-8">
+                        <Calculator className="text-cyan-400" size={24} />
+                        <h4 className="text-xl md:text-3xl font-black italic text-white uppercase tracking-tighter">REFERRAL EARNINGS CALCULATOR</h4>
+                      </div>
+                      
+                      <div className="max-w-xl mx-auto bg-black/60 border border-white/10 rounded-[2.5rem] p-8 md:p-12 shadow-2xl backdrop-blur-sm">
+                        <div className="space-y-8">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="text-left">
+                              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-3 block">PURCHASE AMOUNT (USD)</label>
+                              <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400 font-black">$</span>
+                                <input 
+                                  type="number" 
+                                  value={refCalcAmount}
+                                  onChange={(e) => setRefCalcAmount(e.target.value)}
+                                  className="w-full bg-black/80 border border-white/10 rounded-2xl py-5 pl-10 pr-4 text-white font-black text-xl focus:border-cyan-500/50 outline-none transition-all shadow-inner"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                            </div>
+                            <div className="text-left">
+                              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-3 block">PRESALE STAGE</label>
+                              <select 
+                                value={refCalcStage}
+                                onChange={(e) => setRefCalcStage(e.target.value)}
+                                className="w-full bg-black/80 border border-white/10 rounded-2xl py-5 px-4 text-white font-black text-xl focus:border-cyan-500/50 outline-none transition-all shadow-inner cursor-pointer appearance-none"
+                              >
+                                <option>Stage 1 ($0.20)</option>
+                                <option>Stage 2 ($0.80)</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-gradient-to-br from-blue-900/20 to-transparent border border-blue-500/30 p-8 rounded-3xl text-center relative overflow-hidden group">
+                              <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/5 blur-2xl group-hover:bg-blue-500/10 transition-all"></div>
+                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3 block">20% COMMISSION (USD)</span>
+                              <span className="text-3xl md:text-5xl font-black text-[#16da64] italic tracking-tighter drop-shadow-[0_0_10px_rgba(22,218,100,0.3)]">${refCommissionUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="bg-gradient-to-br from-cyan-900/20 to-transparent border border-cyan-500/30 p-8 rounded-3xl text-center relative overflow-hidden group">
+                              <div className="absolute top-0 right-0 w-16 h-16 bg-cyan-500/5 blur-2xl group-hover:bg-cyan-500/10 transition-all"></div>
+                              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3 block">20% COMMISSION (TOKENS)</span>
+                              <span className="text-3xl md:text-5xl font-black text-cyan-400 italic tracking-tighter drop-shadow-[0_0_10px_rgba(0,255,255,0.3)]">{refCommissionTokens.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                            </div>
+                          </div>
+
+                          <div className="pt-4">
+                            <p className="text-[9px] md:text-[11px] text-gray-500 font-black uppercase leading-relaxed tracking-[0.1em] italic text-center opacity-70">
+                              * COMMISSION IS CALCULATED AT THE CURRENT {refCalcStage.toUpperCase()} PRICE. REWARDS ARE CREDITED INSTANTLY TO YOUR WALLET UPON SUCCESSFUL REFERRAL PURCHASE.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                  </div>
                  <div className="text-center mb-20">
                     <h4 className="text-3xl md:text-5xl font-black italic text-white uppercase mb-4">7. WHY AI GODS?</h4>

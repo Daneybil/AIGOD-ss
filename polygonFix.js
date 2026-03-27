@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { BSC_RPC_URLS } from "./constants.ts";
 
 //////////////////////////////////////////////////
 // NETWORK CONFIG
@@ -12,7 +13,7 @@ const BSC_CHAIN = {
     symbol: "BNB",
     decimals: 18
   },
-  rpcUrls: ["https://bsc-dataseed.binance.org/"],
+  rpcUrls: BSC_RPC_URLS,
   blockExplorerUrls: ["https://bscscan.com"]
 };
 

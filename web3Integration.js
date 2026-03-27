@@ -1,47 +1,22 @@
 import { ethers } from "ethers";
-import { forceBSC, safeContractCall } from "./polygonFix.js";
-import { PROXY_CONTRACT_ADDRESS, CONTRACT_ABI } from "./constants.ts";
-
-const PROXY_ADDRESS = PROXY_CONTRACT_ADDRESS;
-const ABI = CONTRACT_ABI;
-
-let provider = null;
-let signer = null;
-let contract = null;
-
-const zeroAddress = "0x0000000000000000000000000000000000000000";
+import { 
+  getWeb3State, 
+  updateBalances, 
+  loadLeaderboard as serviceLoadLeaderboard, 
+  buyPresale as serviceBuyPresale, 
+  claimAirdrop as serviceClaimAirdrop 
+} from "./web3Service.js";
 
 export async function connectWallet() {
-  if (!window.ethereum) {
-    alert("No crypto wallet found. Please install MetaMask or Trust Wallet.");
-    return;
-  }
-  
   try {
-    // Request accounts directly to ensure connection
-    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
-    if (!accounts || accounts.length === 0) {
-      throw new Error("No accounts found.");
-    }
-
-    await forceBSC();
-    
-    provider = new ethers.BrowserProvider(window.ethereum);
-    signer = await provider.getSigner();
-    
-    // Check if contract exists on this network
-    const code = await provider.getCode(PROXY_ADDRESS);
-    if (code === "0x" || code === "0x0") {
-       throw new Error(`Contract not found at ${PROXY_ADDRESS}. Please ensure you are on the correct network (Binance Smart Chain).`);
-    }
-
-    contract = new ethers.Contract(PROXY_ADDRESS, ABI, signer);
+    const { signer } = await getWeb3State();
     const address = await signer.getAddress();
-    await loadLeaderboard();
+    await updateBalances();
+    await serviceLoadLeaderboard();
     return address;
   } catch (err) {
     console.error("Connection error:", err.message);
-    if (err.code !== 4001) { // 4001 is user rejection
+    if (err.code !== 4001) {
       alert("Connection error: " + (err.reason || err.message));
     }
     return null;
@@ -58,170 +33,34 @@ export function captureReferralFromURL() {
 
 export async function claimAirdrop() {
   try {
-    const address = await connectWallet();
-    if (!address) return;
-
-    // Check if paused or locked with error handling
-    let isPaused = false;
-    let isLocked = false;
-    try {
-      [isPaused, isLocked] = await Promise.all([
-        contract.paused(),
-        contract.isLockedPhase()
-      ]);
-    } catch (e) {
-      console.warn("State check failed, assuming unpaused:", e.message);
-    }
-
-    if (isPaused) {
-      alert("Contract is currently paused.");
-      return;
-    }
-    if (isLocked) {
-      alert("Presale/Airdrop is currently in a locked phase.");
-      return;
-    }
-
-    const userAddress = await signer.getAddress();
-    
-    // Check if already claimed
-    const hasClaimed = await contract.hasClaimedAirdrop(userAddress);
-    if (hasClaimed) {
-      alert("Airdrop already claimed.");
-      return;
-    }
-
-    const tx = await contract.claimAirdrop();
-    console.log("Transaction sent:", tx.hash);
-    alert("Transaction sent... Waiting for confirmation.");
-    
-    await tx.wait();
-    
-    console.log("Transaction successful");
+    const tx = await serviceClaimAirdrop();
     alert("Airdrop claimed successfully!");
-    
-    await loadLeaderboard();
-    await updateBalances();
+    return tx;
   } catch (error) {
-    console.error("Full error:", error);
+    console.error("Airdrop error:", error);
     alert(error.reason || error.message || "Transaction failed");
   }
 }
 
 export async function buyPresale(amountBNB) {
   try {
-    const address = await connectWallet();
-    if (!address) return;
-
-    // Check if paused or locked with error handling
-    let isPaused = false;
-    let isLocked = false;
-    try {
-      [isPaused, isLocked] = await Promise.all([
-        contract.paused(),
-        contract.isLockedPhase()
-      ]);
-    } catch (e) {
-      console.warn("State check failed, assuming unpaused:", e.message);
-    }
-
-    if (isPaused) {
-      alert("Contract is currently paused.");
-      return;
-    }
-    if (isLocked) {
-      alert("Presale is currently in a locked phase.");
-      return;
-    }
-
-    const referralAddress = localStorage.getItem("aigods_referrer");
-    const ref = referralAddress && referralAddress !== ""
-      ? referralAddress
-      : zeroAddress;
-
-    const tx = await contract.buyPreSale(
-      ref,
-      {
-        value: ethers.parseEther(amountBNB.toString())
-      }
-    );
-
-    console.log("Transaction sent:", tx.hash);
-    alert("Transaction sent... Waiting for confirmation.");
-
-    await tx.wait();
-
-    console.log("Transaction successful");
-    alert("Purchase successful.");
-    
-    await loadLeaderboard();
-    await updateBalances();
+    const tx = await serviceBuyPresale(amountBNB);
+    alert("Purchase successful!");
+    return tx;
   } catch (error) {
-    console.error("Full error:", error);
+    console.error("Purchase error:", error);
     alert(error.reason || error.message || "Transaction failed");
   }
 }
 
-async function updateBalances() {
-  if (!signer || !contract) return;
-  try {
-    const address = await signer.getAddress();
-    const balance = await contract.balanceOf(address);
-    const decimals = await contract.decimals();
-    const formatted = ethers.formatUnits(balance, decimals);
-    
-    // Update UI elements if they exist
-    const balanceElement = document.getElementById("userTokenBalance");
-    if (balanceElement) {
-      balanceElement.innerText = parseFloat(formatted).toLocaleString(undefined, { maximumFractionDigits: 2 });
-    }
-    
-    // Also update dashboard if available
-    const { updateDashboard } = await import("./web3Dashboard.js");
-    await updateDashboard();
-  } catch (e) {
-    console.warn("Balance update failed:", e.message);
-  }
-}
-
 export async function loadLeaderboard() {
-  let fetchContract = contract;
-  if (!fetchContract) {
-    try {
-      // Try current provider first, then fallback to public RPCs
-      if (window.ethereum) {
-        const browserProvider = new ethers.BrowserProvider(window.ethereum);
-        fetchContract = new ethers.Contract(PROXY_ADDRESS, ABI, browserProvider);
-      } else {
-        const readProvider = new ethers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
-        fetchContract = new ethers.Contract(PROXY_ADDRESS, ABI, readProvider);
-      }
-    } catch (e) {
-      console.warn("RPC Provider failed, skipping leaderboard fetch.");
-      return;
-    }
-  }
-  try {
-    const [addresses, counts] = await fetchContract.getTopReferrers();
-    const detailedData = addresses.map((addr, index) => ({
-      address: addr,
-      referrals: Number(counts[index])
-    })).filter(item => item.address !== ethers.ZeroAddress);
-
-    if (window.renderLeaderboard) {
-      window.renderLeaderboard(detailedData);
-    }
-  } catch (err) {
-    console.error("Leaderboard fetch failed:", err.message);
-  }
+  return serviceLoadLeaderboard();
 }
 
 // Periodic refresh every 30 seconds
 setInterval(() => {
-  loadLeaderboard();
-  if (signer && contract) {
-    updateBalances();
-  }
+  serviceLoadLeaderboard();
+  updateBalances();
 }, 30000);
 
 captureReferralFromURL();

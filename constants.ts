@@ -1,6 +1,26 @@
 export const AIGODS_LOGO_URL = 'https://i.imgur.com/GJ4BNah.png';
 
+export const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyD-TLeC7XjRLQXPRgnkP4Bz7G8LUw3NLJM",
+  authDomain: "aigod-s-coin-official.firebaseapp.com",
+  projectId: "aigod-s-coin-official",
+  storageBucket: "aigod-s-coin-official.firebasestorage.app",
+  messagingSenderId: "847357583010",
+  appId: "1:847357583010:web:325ee2979d3e8a026dc1fb",
+  measurementId: "G-7KF108XF9X"
+};
+
+export const BSC_RPC_URLS = [
+  "https://bsc-dataseed.binance.org/",
+  "https://bsc-dataseed1.defibit.io/",
+  "https://bsc-dataseed1.ninicoin.io/"
+];
+
 export const PROXY_CONTRACT_ADDRESS = '0xACe6De8F6c453882074cd796d3ae6A070777d65e';
+
+export const BG_LOGO_TOP = 'https://storage.googleapis.com/static.antigravity.ai/asb/daneybil2020%40gmail.com/1743075154330.png';
+export const BG_LOGO_CENTER = 'https://storage.googleapis.com/static.antigravity.ai/asb/daneybil2020%40gmail.com/1743075157434.png';
+export const BG_LOGO_BOTTOM = 'https://storage.googleapis.com/static.antigravity.ai/asb/daneybil2020%40gmail.com/1743075160533.png';
 
 // Integrated smart contract ABI for the AIGODS Proxy
 export const CONTRACT_ABI = [
