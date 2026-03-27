@@ -555,7 +555,16 @@ const App: React.FC = () => {
           </button>
         </div>
 
-        <div className="block">
+        <div className="block flex items-center gap-4">
+           <button 
+             onClick={() => {
+               const element = document.getElementById('buy-input-section');
+               if (element) element.scrollIntoView({ behavior: 'smooth' });
+             }}
+             className="hidden lg:flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-[#ff00ff] to-[#00ffff] rounded-xl text-black font-black text-xs uppercase tracking-widest animate-dim-intense-blue shadow-[0_0_30px_rgba(0,255,255,0.4)] hover:scale-105 transition-all"
+           >
+             BUY AIGODS
+           </button>
            <img 
              src={AIGODS_LOGO_URL} 
              className="w-10 h-10 md:w-16 md:h-16 rounded-full border-2 border-white/20 animate-coin-rotate-y animate-dim-light-blue shadow-[0_0_20px_rgba(255,255,255,0.1)]" 
@@ -747,7 +756,7 @@ const App: React.FC = () => {
            <button 
              id="buyButton"
              onClick={handleBuyPresale}
-             className="px-8 md:px-12 py-5 md:py-6 bg-gradient-to-r from-[#ff00ff] via-[#8b5cf6] to-[#00ffff] rounded-2xl md:rounded-[1.5rem] text-black font-black text-lg md:text-xl uppercase tracking-tighter shadow-xl hover:scale-[1.02] transition-all"
+             className="px-10 md:px-24 py-6 md:py-12 bg-gradient-to-r from-[#ff00ff] via-[#8b5cf6] to-[#00ffff] rounded-2xl md:rounded-[2.5rem] text-black font-black text-xl sm:text-3xl md:text-5xl uppercase tracking-tighter shadow-[0_0_80px_rgba(0,255,255,0.6)] hover:scale-[1.05] transition-all animate-dim-intense-blue"
            >
              BUY AIGODS NOW
            </button>

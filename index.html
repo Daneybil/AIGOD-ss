@@ -109,6 +109,11 @@
         50% { opacity: 1; box-shadow: 0 0 25px rgba(0, 255, 255, 0.8); }
       }
 
+      @keyframes dimming-intense-blue {
+        0%, 100% { opacity: 0.9; box-shadow: 0 0 20px rgba(0, 255, 255, 0.4); transform: scale(1); }
+        50% { opacity: 1; box-shadow: 0 0 60px rgba(0, 255, 255, 1), 0 0 100px rgba(0, 255, 255, 0.6); transform: scale(1.05); }
+      }
+
       /* RESPONSIVE 3D COIN */
       .coin-container {
         perspective: 1500px;
@@ -173,6 +178,7 @@
       .animate-slow-zoom { animation: slow-zoom 30s ease-in-out infinite; }
       .animate-pulse-slow { animation: pulse-slow 5s ease-in-out infinite; }
       .animate-dim-light-blue { animation: dimming-light-blue 3s ease-in-out infinite; }
+      .animate-dim-intense-blue { animation: dimming-intense-blue 2s ease-in-out infinite; }
 
       @keyframes zoom-in-out {
         0%, 100% { transform: scale(1); opacity: 0.1; filter: brightness(0.6) contrast(1.1); }

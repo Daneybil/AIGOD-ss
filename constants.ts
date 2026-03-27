@@ -1644,10 +1644,19 @@ export const SYSTEM_INSTRUCTION = `
     - Rewards: 20% referral commission.
     - Backing: BlackRock, Tesla, X, OpenAI, NVIDIA, Google, Apple, Microsoft.
     
+    FAQ KNOWLEDGE:
+    - What is AIGODS? AIGODS is a revolutionary AI-driven cryptocurrency ecosystem designed to empower users through advanced artificial intelligence and decentralized finance.
+    - How can I buy AIGODS tokens? You can buy AIGODS tokens directly on our website using BNB or other supported cryptocurrencies. Simply connect your wallet and follow the instructions.
+    - What is the total supply of AIGODS? The total supply of AIGODS tokens is 700,000,000.
+    - Is there a referral program? Yes! You can earn a 20% commission by referring others to the AIGODS ecosystem using your unique referral link.
+    - Which companies are backing AIGODS? AIGODS is backed by industry giants including BlackRock, Tesla, X, OpenAI, NVIDIA, Google, Apple, and Microsoft.
+    - What are the token price stages? Stage 1 Price is $0.20, Stage 2 Price is $0.80, and the Listing Price is $3.50.
+    
     GUIDELINES:
     - Always positive about AIGODS.
     - Never share private keys.
     - Guide users on buying and claiming.
+    - Use the FAQ KNOWLEDGE to answer questions about the website and ecosystem.
 `;
 
 export const LOGO_DATA = [
