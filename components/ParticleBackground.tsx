@@ -16,82 +16,65 @@ const ParticleBackground: React.FC = () => {
       <div className="absolute inset-0 animate-pulse-slow bg-cyan-500/5 mix-blend-screen" />
 
       {/* Animated Background Logos - Permanent Billboard */}
-      <div className="absolute inset-0 z-0 flex flex-col items-center justify-between py-10 md:py-20 opacity-60">
-        {/* Top Logo */}
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0.4 }}
-          animate={{ 
-            scale: [0.9, 1.1, 0.9],
-            opacity: [0.4, 0.8, 0.4],
-            y: [0, -20, 0]
-          }}
-          transition={{ 
-            duration: 8, 
-            repeat: Infinity, 
-            ease: "easeInOut" 
-          }}
-          className="w-full max-w-[300px] md:max-w-[600px] px-4"
-        >
-          <img 
-            src={BG_LOGO_TOP} 
-            alt="Background Top" 
-            className="w-full h-auto drop-shadow-[0_0_30px_rgba(34,211,238,0.6)]"
-            onError={handleImageError}
-          />
-        </motion.div>
+      <div className="absolute inset-0 z-[-10] flex items-center justify-center pointer-events-none opacity-60">
+        <div className="relative w-full h-full flex items-center justify-center">
+          {/* Main Centered Logo with slow, complex motion - HUGE BILLBOARD */}
+          <motion.div 
+            initial={{ scale: 1.2, opacity: 0.4 }}
+            animate={{ 
+              scale: [1.2, 1.4, 1.2],
+              opacity: [0.4, 0.7, 0.4],
+              rotate: [0, 5, -5, 0],
+              x: [0, 50, -50, 0],
+              y: [0, -30, 30, 0]
+            }}
+            transition={{ 
+              duration: 50, 
+              repeat: Infinity, 
+              ease: "easeInOut" 
+            }}
+            className="w-full max-w-[800px] md:max-w-[1400px] px-4"
+          >
+            <img 
+              src={BG_LOGO_CENTER} 
+              alt="Background Center" 
+              className="w-full h-auto filter brightness-75 contrast-150 drop-shadow-[0_0_150px_rgba(34,211,238,0.4)]"
+              onError={handleImageError}
+            />
+          </motion.div>
 
-        {/* Center Logo */}
-        <motion.div 
-          initial={{ scale: 1, opacity: 0.5 }}
-          animate={{ 
-            scale: [1, 1.2, 1],
-            opacity: [0.5, 0.9, 0.5],
-            rotate: [0, 2, -2, 0]
-          }}
-          transition={{ 
-            duration: 12, 
-            repeat: Infinity, 
-            ease: "easeInOut" 
-          }}
-          className="w-full max-w-[400px] md:max-w-[800px] px-4"
-        >
-          <img 
-            src={BG_LOGO_CENTER} 
-            alt="Background Center" 
-            className="w-full h-auto drop-shadow-[0_0_50px_rgba(34,211,238,0.8)]"
-            onError={handleImageError}
-          />
-        </motion.div>
+          {/* Secondary Subtle Logos for depth - Also Huge */}
+          <motion.div 
+            animate={{ 
+              y: [0, -60, 0],
+              opacity: [0.2, 0.4, 0.2],
+              scale: [1, 1.1, 1]
+            }}
+            transition={{ duration: 40, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute top-0 md:top-10 w-full max-w-[500px] md:max-w-[1000px] px-4 opacity-30"
+          >
+            <img src={BG_LOGO_TOP} alt="Background Top" className="w-full h-auto filter brightness-60 contrast-125" onError={handleImageError} />
+          </motion.div>
 
-        {/* Bottom Logo */}
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0.4 }}
-          animate={{ 
-            scale: [0.9, 1.1, 0.9],
-            opacity: [0.4, 0.8, 0.4],
-            y: [0, 20, 0]
-          }}
-          transition={{ 
-            duration: 10, 
-            repeat: Infinity, 
-            ease: "easeInOut" 
-          }}
-          className="w-full max-w-[300px] md:max-w-[600px] px-4"
-        >
-          <img 
-            src={BG_LOGO_BOTTOM} 
-            alt="Background Bottom" 
-            className="w-full h-auto drop-shadow-[0_0_30px_rgba(34,211,238,0.6)]"
-            onError={handleImageError}
-          />
-        </motion.div>
+          <motion.div 
+            animate={{ 
+              y: [0, 60, 0],
+              opacity: [0.2, 0.4, 0.2],
+              scale: [1, 1.1, 1]
+            }}
+            transition={{ duration: 45, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute bottom-0 md:bottom-10 w-full max-w-[500px] md:max-w-[1000px] px-4 opacity-30"
+          >
+            <img src={BG_LOGO_BOTTOM} alt="Background Bottom" className="w-full h-auto filter brightness-60 contrast-125" onError={handleImageError} />
+          </motion.div>
+        </div>
       </div>
 
-      {/* Subtle overlay for readability */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] z-[1]"></div>
+      {/* Subtle overlay for readability - Adjusted for better visibility of logos */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] z-[-5]"></div>
 
       <div 
-        className="absolute inset-0 bg-center bg-no-repeat opacity-20 z-10"
+        className="absolute inset-0 bg-center bg-no-repeat opacity-15 z-[-8]"
         style={{ 
           backgroundImage: `url('${AIGODS_LOGO_URL}')`,
           backgroundSize: 'contain',
@@ -99,7 +82,7 @@ const ParticleBackground: React.FC = () => {
         }}
       />
 
-      <div className="absolute inset-0 overflow-hidden [perspective:1500px] z-10">
+      <div className="absolute inset-0 overflow-hidden [perspective:1500px] z-[-15]">
         {[...Array(12)].map((_, i) => (
           <div 
             key={i}

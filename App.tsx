@@ -143,6 +143,10 @@ const faqItems = [
   {
     q: "15. How much is committed to AIGODS?",
     a: "A total of $10 billion is being committed to the AIGODS project.<br><br>AIGODS is positioned to become one of the biggest crypto projects in the history of cryptocurrency. It is built to transform the industry, create massive opportunities, and empower people globally.<br><br>Getting in early represents one of the biggest opportunities and strategic decisions anyone can make in this space. AIGODS is designed for long-term impact, strong growth, and real utility.<br><br>AIGODS is here to stay, and it's not going anywhere."
+  },
+  {
+    q: "16. How do I participate if I don't have funds?",
+    a: "Even if you don't have funds to buy the presale, you can still participate and accumulate a lot of AI Coin through our **Referral Program**.<br><br>By sharing your unique referral link, you earn an **instant 20% commission** on every investment made through your link. This is a powerful way to build your AI Coin portfolio without any initial investment."
   }
 ];
 
@@ -494,19 +498,19 @@ const App: React.FC = () => {
     <div className="min-h-screen w-full relative flex flex-col items-center bg-black overflow-x-hidden pb-10 font-inter text-white">
       <ParticleBackground />
 
-      {/* BACKGROUND LOGOS WITH ZOOM ANIMATION */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+      {/* BACKGROUND LOGOS WITH ZOOM ANIMATION - HUGE BILLBOARD FORM */}
+      <div className="fixed inset-0 pointer-events-none z-[-1] overflow-hidden opacity-70">
         {/* TOP LOGO */}
-        <div className="absolute top-[5%] left-1/2 -translate-x-1/2 w-[50vw] md:w-[35vw] animate-zoom-in-out">
-          <img src={BG_LOGO_TOP} alt="Background Logo Top" className="w-full h-auto filter brightness-75 contrast-125 drop-shadow-[0_0_40px_rgba(0,100,255,0.3)]" onError={handleImageError} />
+        <div className="absolute top-[5%] left-1/2 -translate-x-1/2 w-[120vw] md:w-[100vw] animate-zoom-in-out opacity-40">
+          <img src={BG_LOGO_TOP} alt="Background Logo Top" className="w-full h-auto filter brightness-75 contrast-150 drop-shadow-[0_0_120px_rgba(0,100,255,0.3)]" onError={handleImageError} />
         </div>
-        {/* CENTER LOGO */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[70vw] md:w-[50vw] animate-zoom-in-out" style={{ animationDelay: '5s' }}>
-          <img src={BG_LOGO_CENTER} alt="Background Logo Center" className="w-full h-auto filter brightness-75 contrast-125 drop-shadow-[0_0_60px_rgba(0,100,255,0.2)]" onError={handleImageError} />
+        {/* CENTER LOGO - THE MAIN BILLBOARD */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vw] md:w-[120vw] animate-zoom-in-out" style={{ animationDelay: '5s' }}>
+          <img src={BG_LOGO_CENTER} alt="Background Logo Center" className="w-full h-auto filter brightness-90 contrast-150 drop-shadow-[0_0_150px_rgba(0,100,255,0.4)]" onError={handleImageError} />
         </div>
         {/* BOTTOM LOGO */}
-        <div className="absolute bottom-[5%] left-1/2 -translate-x-1/2 w-[50vw] md:w-[35vw] animate-zoom-in-out" style={{ animationDelay: '10s' }}>
-          <img src={BG_LOGO_BOTTOM} alt="Background Logo Bottom" className="w-full h-auto filter brightness-75 contrast-125 drop-shadow-[0_0_40px_rgba(0,100,255,0.3)]" onError={handleImageError} />
+        <div className="absolute bottom-[5%] left-1/2 -translate-x-1/2 w-[120vw] md:w-[100vw] animate-zoom-in-out opacity-40" style={{ animationDelay: '10s' }}>
+          <img src={BG_LOGO_BOTTOM} alt="Background Logo Bottom" className="w-full h-auto filter brightness-75 contrast-150 drop-shadow-[0_0_120px_rgba(0,100,255,0.3)]" onError={handleImageError} />
         </div>
       </div>
 
@@ -963,6 +967,14 @@ const App: React.FC = () => {
               </div>
               <p className="text-[8px] md:text-[10px] font-black text-gray-700 uppercase tracking-widest">BRIDGING THE GAP BETWEEN TITANS AND THE FUTURE.</p>
            </div>
+        </div>
+
+        {/* PARTICIPATION NOTICE MOVED UNDER SOCIAL MEDIA HANDLES */}
+        <div className="w-full max-w-4xl px-4 mt-12 mb-8 bg-yellow-500/10 border-2 border-yellow-500/30 rounded-3xl p-8 text-center shadow-[0_0_50px_rgba(234,179,8,0.2)]">
+          <p className="text-yellow-400 text-lg md:text-2xl font-black uppercase tracking-[0.15em] leading-tight">
+            Even if you don't have money, you can still participate. <br className="hidden md:block" />
+            Use the <span className="text-white underline decoration-yellow-500 underline-offset-4">referral program</span> to earn <span className="text-white text-3xl md:text-5xl">20%</span> commission!
+          </p>
         </div>
 
         <div className="w-full max-w-6xl px-4 text-center space-y-8 md:space-y-10 pb-20 md:pb-24 border-t border-gray-900 pt-16 md:pt-20 mt-20 md:mt-32">

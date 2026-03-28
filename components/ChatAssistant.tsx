@@ -14,7 +14,8 @@ import {
   MicOff,
   PhoneOff,
   Paperclip,
-  Loader2
+  Loader2,
+  Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SYSTEM_INSTRUCTION } from '../constants.ts';
@@ -44,6 +45,8 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [isConfigured, setIsConfigured] = useState({ thinking: true, whisper: true, tts: true });
+  const [testResults, setTestResults] = useState<any>(null);
+  const [isTesting, setIsTesting] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -60,6 +63,19 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
     const target = e.target as HTMLImageElement;
     target.onerror = null;
     target.src = "https://ui-avatars.com/api/?name=AIGODS&background=0D0D0D&color=00ffff&size=256&bold=true";
+  };
+
+  const runTest = async () => {
+    setIsTesting(true);
+    try {
+      const res = await fetch("/api/test-connection");
+      const data = await res.json();
+      setTestResults(data);
+    } catch (e) {
+      setTestResults({ error: "Failed to run test" });
+    } finally {
+      setIsTesting(false);
+    }
   };
 
   useEffect(() => {
@@ -92,6 +108,10 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
     setIsThinking(true);
 
     try {
+      // Create an AbortController for a 90-second timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 90000);
+
       let responseText = "";
       
       if (userMsg.image) {
@@ -101,26 +121,65 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
         formData.append("image", blob);
         formData.append("prompt", `${SYSTEM_INSTRUCTION}\n\nUser Query: ${textToUse}`);
         
-        const res = await fetch("/api/vision", { method: "POST", body: formData });
-        if (!res.ok) throw new Error("Vision API Error");
+        const res = await fetch("/api/vision", { 
+          method: "POST", 
+          body: formData,
+          signal: controller.signal 
+        });
+        clearTimeout(timeoutId);
+        
+        if (!res.ok) {
+          const text = await res.text();
+          try {
+            const errorData = JSON.parse(text);
+            throw new Error(`Vision API Error: ${JSON.stringify(errorData.details || errorData.error)}`);
+          } catch (e) {
+            throw new Error(`Vision API Error (HTML Response): ${text.substring(0, 100)}...`);
+          }
+        }
         const data = await res.json();
-        responseText = data.choices[0].message.content;
+        if (data.choices && data.choices[0] && data.choices[0].message) {
+          responseText = data.choices[0].message.content;
+        } else {
+          throw new Error("Unexpected Vision API response format");
+        }
       } else {
         // Use Chat API
+        // Filter out any empty messages or messages with undefined content
+        // Limit to last 10 messages to avoid token limits
+        const chatHistory = messages
+          .filter(m => m.content && m.content.trim())
+          .slice(-10)
+          .map(m => ({ role: m.role, content: m.content }));
+
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
           body: JSON.stringify({
             messages: [
               { role: "system", content: SYSTEM_INSTRUCTION },
-              ...messages.map(m => ({ role: m.role, content: m.content })),
+              ...chatHistory,
               { role: "user", content: textToUse }
             ]
           })
         });
-        if (!res.ok) throw new Error("Chat API Error");
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+          const text = await res.text();
+          try {
+            const errorData = JSON.parse(text);
+            throw new Error(`Chat API Error: ${JSON.stringify(errorData.details || errorData.error)}`);
+          } catch (e) {
+            throw new Error(`Chat API Error (HTML Response): ${text.substring(0, 100)}...`);
+          }
+        }
         const data = await res.json();
-        responseText = data.choices[0].message.content;
+        if (data.choices && data.choices[0] && data.choices[0].message) {
+          responseText = data.choices[0].message.content;
+        } else {
+          throw new Error("Unexpected Chat API response format");
+        }
       }
 
       setMessages(prev => [...prev, { role: 'assistant', content: responseText }]);
@@ -130,7 +189,11 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
       }
     } catch (error: any) {
       console.error("AI Error:", error?.message || "Communication failed");
-      setMessages(prev => [...prev, { role: 'assistant', content: "An error occurred. Please ensure your NVIDIA API keys are set in the environment variables. 👑" }]);
+      const debugInfo = error?.message ? `\n\n[DEBUG INFO]: ${error.message}` : "";
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: `An error occurred. Please ensure your NVIDIA API keys are set correctly in the environment variables. 👑${debugInfo}` 
+      }]);
     } finally {
       setIsThinking(false);
     }
@@ -144,6 +207,9 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text })
       });
+      
+      if (!res.ok) throw new Error("TTS API Error");
+      
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       
@@ -198,12 +264,13 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
       const res = await fetch("/api/transcribe", { method: "POST", body: formData });
       if (!res.ok) throw new Error("Transcription API Error");
       const data = await res.json();
-      if (data.text) {
-        if (isInCall) {
-          await handleSendMessage(data.text);
-        } else {
-          setInputText(data.text);
-        }
+      console.log("Transcription Result:", data);
+      
+      if (data.text && data.text.trim().length > 0) {
+        // Auto-send for both call and voice note
+        await handleSendMessage(data.text);
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: "I couldn't quite hear that. Could you please try speaking again? 👑" }]);
       }
     } catch (error) {
       console.error("Transcription Error:", error);
@@ -351,7 +418,27 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
               </div>
               <h4 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-2">AIGODS AI <Sparkles size={12} /></h4>
             </div>
-            <div className="flex gap-2 text-white">
+            <div className="flex gap-2 text-white items-center">
+              <button 
+                onClick={async () => {
+                  try {
+                    setMessages(prev => [...prev, { role: 'assistant', content: "Testing NVIDIA API connections... 👑" }]);
+                    const res = await fetch("/api/test-connection");
+                    const data = await res.json();
+                    let report = "Connection Test Results:\n";
+                    Object.entries(data).forEach(([key, val]: [string, any]) => {
+                      report += `\n${key.toUpperCase()}: ${val.status}\nDetails: ${typeof val.details === 'object' ? JSON.stringify(val.details) : val.details}\n`;
+                    });
+                    setMessages(prev => [...prev, { role: 'assistant', content: report }]);
+                  } catch (err: any) {
+                    setMessages(prev => [...prev, { role: 'assistant', content: `Test failed: ${err.message}` }]);
+                  }
+                }}
+                className="p-1 hover:bg-white/10 rounded-lg transition-colors mr-2"
+                title="Test API Connection"
+              >
+                <Activity size={18} className="text-cyan-400" />
+              </button>
               <button onClick={() => setIsMinimized(!isMinimized)}><Minimize2 size={18} /></button>
               <button onClick={() => setIsFullScreen(!isFullScreen)}><Maximize2 size={18} /></button>
               <button onClick={() => setIsOpen(false)} className="text-red-500 ml-2"><X size={24} /></button>
@@ -368,7 +455,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
                       key="bg-logo-container"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="relative flex items-center justify-center"
+                      className="relative flex items-center justify-center pointer-events-none"
                     >
                       {/* Main Logo with slow, complex motion - Brighter and more visible */}
                       <motion.img 
@@ -385,7 +472,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
                           repeat: Infinity, 
                           ease: "easeInOut" 
                         }}
-                        className="w-96 h-96 object-contain grayscale brightness-[0.6]" 
+                        className="w-96 h-96 md:w-[600px] md:h-[600px] object-contain grayscale brightness-[0.6]" 
                         onError={handleImageError}
                       />
                       
@@ -403,7 +490,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
                           repeat: Infinity, 
                           ease: "linear" 
                         }}
-                        className="absolute w-96 h-96 object-contain grayscale brightness-[0.4] blur-lg"
+                        className="absolute w-96 h-96 md:w-[600px] md:h-[600px] object-contain grayscale brightness-[0.4] blur-lg"
                       />
 
                       {/* Ambient Glow - More intense */}
@@ -418,7 +505,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
                           ]
                         }}
                         transition={{ duration: 12, repeat: Infinity }}
-                        className="absolute inset-0 w-[600px] h-[600px] rounded-full"
+                        className="absolute inset-0 w-[600px] h-[600px] md:w-[800px] md:h-[800px] rounded-full"
                       ></motion.div>
                     </motion.div>
                   </AnimatePresence>
@@ -430,6 +517,55 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
                       ⚠️  NVIDIA API Keys Missing. Please set them in environment variables.
                     </div>
                   )}
+
+                  {/* API TEST TOOL */}
+                  <div className="bg-cyan-500/5 border border-cyan-500/20 p-4 rounded-2xl mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-cyan-400">API Diagnostic Tool</span>
+                      <button 
+                        onClick={runTest}
+                        disabled={isTesting}
+                        className="px-4 py-1.5 bg-cyan-500 text-black text-[9px] font-black uppercase rounded-lg hover:bg-cyan-400 transition-all disabled:opacity-50"
+                      >
+                        {isTesting ? "Testing..." : "Test Connection"}
+                      </button>
+                    </div>
+                    {testResults && (
+                      <div className="space-y-2 text-[9px] font-mono">
+                        <div className="flex justify-between border-b border-white/5 pb-1">
+                          <span className="text-gray-500">CHAT/VISION:</span>
+                          <span className={testResults.thinking?.status.includes('Success') ? 'text-green-400' : 'text-red-400'}>
+                            {testResults.thinking?.status || "N/A"}
+                          </span>
+                        </div>
+                        {testResults.thinking?.details && (
+                          <div className="text-[8px] text-gray-400 bg-black/40 p-2 rounded overflow-x-auto max-h-20">
+                            {JSON.stringify(testResults.thinking.details)}
+                          </div>
+                        )}
+                        
+                        <div className="flex justify-between border-b border-white/5 pb-1">
+                          <span className="text-gray-500">WHISPER:</span>
+                          <span className={testResults.whisper?.status.includes('Loaded') ? 'text-green-400' : 'text-red-400'}>
+                            {testResults.whisper?.status || "N/A"}
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between border-b border-white/5 pb-1">
+                          <span className="text-gray-500">TTS:</span>
+                          <span className={testResults.tts?.status.includes('Success') ? 'text-green-400' : 'text-red-400'}>
+                            {testResults.tts?.status || "N/A"}
+                          </span>
+                        </div>
+                        {testResults.tts?.details && (
+                          <div className="text-[8px] text-gray-400 bg-black/40 p-2 rounded overflow-x-auto max-h-20">
+                            {JSON.stringify(testResults.tts.details)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   {messages.map((msg, i) => (
                     <motion.div 
                       key={i} 
@@ -465,7 +601,13 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
                 )}
               </div>
 
-              <div className="p-3 md:p-8 bg-gray-900/40 border-t border-gray-800">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendMessage();
+                }}
+                className="p-3 md:p-8 bg-gray-900/40 border-t border-gray-800 relative z-50"
+              >
                 {selectedImage && <div className="relative mb-4 inline-block"><img src={selectedImage} className="w-16 h-16 rounded-xl" /><button onClick={() => setSelectedImage(null)} className="absolute -top-2 -right-2 bg-red-500 p-1 rounded-full"><X size={10} className="text-white"/></button></div>}
                 
                 {isTranscribing && <p className="text-[10px] text-cyan-400 uppercase font-black mb-2 animate-pulse">Transcribing Voice Note...</p>}
@@ -503,11 +645,15 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
                     placeholder="Ask AIGODS..." 
                   />
                   
-                  <button onClick={handleSendMessage} className="p-2.5 md:p-3 bg-cyan-500 text-black rounded-xl hover:bg-cyan-400 transition-colors flex-shrink-0">
-                    <Send size={16} className="md:w-5 md:h-5" />
+                  <button 
+                    type="submit"
+                    disabled={isThinking || (!inputText.trim() && !selectedImage)}
+                    className={`p-2.5 md:p-4 rounded-xl transition-all flex-shrink-0 shadow-lg active:scale-95 ${isThinking || (!inputText.trim() && !selectedImage) ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-cyan-500 text-black hover:bg-cyan-400 shadow-cyan-500/20'}`}
+                  >
+                    {isThinking ? <Loader2 size={20} className="animate-spin md:w-6 md:h-6" /> : <Send size={20} className="md:w-6 md:h-6" />}
                   </button>
                 </div>
-              </div>
+              </form>
             </>
           )}
         </div>

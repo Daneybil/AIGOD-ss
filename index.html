@@ -181,12 +181,13 @@
       .animate-dim-intense-blue { animation: dimming-intense-blue 2s ease-in-out infinite; }
 
       @keyframes zoom-in-out {
-        0%, 100% { transform: scale(1); opacity: 0.1; filter: brightness(0.6) contrast(1.1); }
-        50% { transform: scale(1.15); opacity: 0.25; filter: brightness(0.8) contrast(1.2); }
+        0%, 100% { transform: scale(1) translate(0, 0); opacity: 0.05; filter: brightness(0.5) contrast(1.1); }
+        33% { transform: scale(1.1) translate(20px, -10px); opacity: 0.15; filter: brightness(0.7) contrast(1.2); }
+        66% { transform: scale(1.05) translate(-20px, 10px); opacity: 0.1; filter: brightness(0.6) contrast(1.15); }
       }
 
       .animate-zoom-in-out {
-        animation: zoom-in-out 25s ease-in-out infinite;
+        animation: zoom-in-out 45s ease-in-out infinite;
       }
 
       .scrollbar-hide::-webkit-scrollbar { display: none; }

@@ -1649,6 +1649,7 @@ export const SYSTEM_INSTRUCTION = `
     - How can I buy AIGODS tokens? You can buy AIGODS tokens directly on our website using BNB or other supported cryptocurrencies. Simply connect your wallet and follow the instructions.
     - What is the total supply of AIGODS? The total supply of AIGODS tokens is 700,000,000.
     - Is there a referral program? Yes! You can earn a 20% commission by referring others to the AIGODS ecosystem using your unique referral link.
+    - How can I participate if I don't have funds? Even if you don't have funds to buy the presale, you can still participate and accumulate a lot of AI Coin through our Referral Program. By sharing your unique referral link, you earn an instant 20% commission on every investment made through your link.
     - Which companies are backing AIGODS? AIGODS is backed by industry giants including BlackRock, Tesla, X, OpenAI, NVIDIA, Google, Apple, and Microsoft.
     - What are the token price stages? Stage 1 Price is $0.20, Stage 2 Price is $0.80, and the Listing Price is $3.50.
     
