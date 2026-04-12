@@ -80,17 +80,18 @@ export async function getWeb3State() {
     throw new Error("No crypto wallet found. Please install MetaMask or use Trust Wallet.");
   }
   
-  // Ensure we are on BSC before initializing provider
+  // 1. Ensure we are on BSC FIRST before initializing provider to prevent "Failed to fetch"
   try {
     await forceBSC();
   } catch (err) {
     console.warn("forceBSC failed, but attempting to proceed:", err.message);
   }
   
-  // Initialize provider with explicit network to avoid "Failed to fetch eth_blockNumber"
+  // 2. Initialize provider with 'any' network to handle network changes gracefully
+  // and prevent the 'could not coalesce error' during initialization
   provider = new ethers.BrowserProvider(window.ethereum, "any");
   
-  // Request account access explicitly
+  // 3. Request account access explicitly
   try {
     await window.ethereum.request({ method: 'eth_requestAccounts' });
   } catch (err) {
@@ -102,20 +103,21 @@ export async function getWeb3State() {
   
   signer = await provider.getSigner();
   
-  // Verify network again after account access
+  // 4. Verify network again after account access
   const network = await provider.getNetwork();
   if (Number(network.chainId) !== 56) {
     console.warn("Provider is not on BSC (Chain ID 56). Current Chain ID:", network.chainId);
-    // Try one last time to switch
+    // Try one last time to switch if network is wrong
     try { await forceBSC(); } catch (e) {}
   }
 
-  // Verify contract existence with fallback RPC
+  // 5. Verify contract existence with fallback RPC resilience
   let code = "0x";
   try {
     code = await provider.getCode(PROXY_ADDRESS);
   } catch (err) {
-    console.warn("getCode failed on wallet provider, trying fallback RPC:", err.message);
+    console.warn("getCode failed on wallet provider, trying fallback RPCs:", err.message);
+    // Iterate through fallback RPCs from constants
     for (const rpc of BSC_RPC_URLS) {
       try {
         const fallbackProvider = new ethers.JsonRpcProvider(rpc);
@@ -138,6 +140,8 @@ export async function updateBalances() {
     const { provider, signer, contract } = await getWeb3State();
     const address = await signer.getAddress();
     
+    console.log("Fetching balances for:", address);
+
     // Fetch Token Balance
     let tokenBal = "0.00";
     try {
@@ -160,6 +164,8 @@ export async function updateBalances() {
     // Format balances for display
     const formattedTokenBalance = isNaN(parseFloat(tokenBal)) ? "0.00" : parseFloat(tokenBal).toLocaleString(undefined, { maximumFractionDigits: 2 });
     const formattedBnbBalance = isNaN(parseFloat(bnbBal)) ? "0.0000" : parseFloat(bnbBal).toFixed(4);
+
+    console.log("Balances updated:", { token: formattedTokenBalance, bnb: formattedBnbBalance });
 
     // Fetch referrals from contract if function exists
     let referrals = 0;
