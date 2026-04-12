@@ -62,11 +62,14 @@ export async function forceBSC() {
 export async function getWeb3State() {
   if (provider && signer && contract) {
     try {
-      // Verify connection is still active
-      await signer.getAddress();
-      return { provider, signer, contract };
+      // Verify connection is still active and on correct network
+      const network = await provider.getNetwork();
+      if (Number(network.chainId) === 56) {
+        await signer.getAddress();
+        return { provider, signer, contract };
+      }
     } catch (e) {
-      // Re-initialize if stale
+      // Re-initialize if stale or wrong network
       provider = null;
       signer = null;
       contract = null;
@@ -77,7 +80,17 @@ export async function getWeb3State() {
     throw new Error("No crypto wallet found. Please install MetaMask or use Trust Wallet.");
   }
   
-  // Request account access explicitly for better compatibility
+  // Ensure we are on BSC before initializing provider
+  try {
+    await forceBSC();
+  } catch (err) {
+    console.warn("forceBSC failed, but attempting to proceed:", err.message);
+  }
+  
+  // Initialize provider with explicit network to avoid "Failed to fetch eth_blockNumber"
+  provider = new ethers.BrowserProvider(window.ethereum, "any");
+  
+  // Request account access explicitly
   try {
     await window.ethereum.request({ method: 'eth_requestAccounts' });
   } catch (err) {
@@ -87,35 +100,28 @@ export async function getWeb3State() {
     throw err;
   }
   
-  // Ensure we are on BSC
-  try {
-    await forceBSC();
-  } catch (err) {
-    console.warn("forceBSC failed, but continuing with current network:", err.message);
-    // We still try to proceed, but some functions might fail if not on BSC
-  }
+  signer = await provider.getSigner();
   
-  provider = new ethers.BrowserProvider(window.ethereum);
-  
-  // Re-verify network after provider initialization
+  // Verify network again after account access
   const network = await provider.getNetwork();
   if (Number(network.chainId) !== 56) {
     console.warn("Provider is not on BSC (Chain ID 56). Current Chain ID:", network.chainId);
+    // Try one last time to switch
+    try { await forceBSC(); } catch (e) {}
   }
 
-  signer = await provider.getSigner();
-  
-  // Verify contract existence
+  // Verify contract existence with fallback RPC
   let code = "0x";
   try {
     code = await provider.getCode(PROXY_ADDRESS);
   } catch (err) {
-    console.warn("getCode failed, trying fallback:", err.message);
-    try {
-      const fallbackProvider = new ethers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
-      code = await fallbackProvider.getCode(PROXY_ADDRESS);
-    } catch (fallbackErr) {
-      console.error("Fallback check failed:", fallbackErr);
+    console.warn("getCode failed on wallet provider, trying fallback RPC:", err.message);
+    for (const rpc of BSC_RPC_URLS) {
+      try {
+        const fallbackProvider = new ethers.JsonRpcProvider(rpc);
+        code = await fallbackProvider.getCode(PROXY_ADDRESS);
+        if (code !== "0x" && code !== "0x0") break;
+      } catch (fallbackErr) {}
     }
   }
 
@@ -151,6 +157,10 @@ export async function updateBalances() {
       console.warn("BNB balance fetch failed:", e.message);
     }
     
+    // Format balances for display
+    const formattedTokenBalance = isNaN(parseFloat(tokenBal)) ? "0.00" : parseFloat(tokenBal).toLocaleString(undefined, { maximumFractionDigits: 2 });
+    const formattedBnbBalance = isNaN(parseFloat(bnbBal)) ? "0.0000" : parseFloat(bnbBal).toFixed(4);
+
     // Fetch referrals from contract if function exists
     let referrals = 0;
     try {
@@ -175,8 +185,8 @@ export async function updateBalances() {
     // Dispatch event for React
     window.dispatchEvent(new CustomEvent('web3Update', { 
       detail: { 
-        tokenBalance: parseFloat(tokenBal).toLocaleString(undefined, { maximumFractionDigits: 2 }),
-        bnbBalance: parseFloat(bnbBal).toFixed(4),
+        tokenBalance: formattedTokenBalance,
+        bnbBalance: formattedBnbBalance,
         referrals: referrals,
         address: address
       } 
@@ -185,6 +195,7 @@ export async function updateBalances() {
     return { balance: tokenBal, bnbBalance: bnbBal, referrals };
   } catch (e) {
     console.error("Balance update failed:", e.message);
+    return { balance: "0.00", bnbBalance: "0.00", referrals: 0 };
   }
 }
 
@@ -198,25 +209,121 @@ export async function loadLeaderboard() {
 }
 
 export async function buyPresale(amountBNB) {
-  const { contract } = await getWeb3State();
-  const referralAddress = localStorage.getItem("aigods_referrer") || zeroAddress;
-  
-  // Using buyTokensWithReferral as per ABI
-  const tx = await contract.buyTokensWithReferral(referralAddress, {
-    value: ethers.parseEther(amountBNB.toString())
-  });
-  
-  await tx.wait();
-  await updateBalances();
-  // await loadLeaderboard();
-  return tx;
+  try {
+    const { contract } = await getWeb3State();
+    const referralAddress = localStorage.getItem("aigods_referrer") || zeroAddress;
+    
+    console.log("Initiating buyPresale with amount:", amountBNB, "and referral:", referralAddress);
+    
+    const value = ethers.parseEther(amountBNB.toString());
+    
+    // Estimate gas for better reliability
+    let gasLimit;
+    try {
+      gasLimit = await contract.buyTokensWithReferral.estimateGas(referralAddress, { value });
+      // Add 20% buffer
+      gasLimit = (gasLimit * 120n) / 100n;
+    } catch (e) {
+      console.warn("Gas estimation failed, using default:", e.message);
+      gasLimit = 300000n;
+    }
+
+    const tx = await contract.buyTokensWithReferral(referralAddress, {
+      value,
+      gasLimit
+    });
+    
+    console.log("Transaction sent:", tx.hash);
+    await tx.wait();
+    console.log("Transaction confirmed");
+    
+    await updateBalances();
+    return tx;
+  } catch (err) {
+    console.error("buyPresale failed:", err);
+    throw err;
+  }
 }
 
 export async function claimAirdrop() {
-  const { contract } = await getWeb3State();
-  const tx = await contract.claimAirdrop();
-  await tx.wait();
-  await updateBalances();
-  await loadLeaderboard();
-  return tx;
+  try {
+    const { contract } = await getWeb3State();
+    
+    console.log("Initiating claimAirdrop");
+    
+    // Estimate gas
+    let gasLimit;
+    try {
+      gasLimit = await contract.claimAirdrop.estimateGas();
+      gasLimit = (gasLimit * 120n) / 100n;
+    } catch (e) {
+      console.warn("Gas estimation failed, using default:", e.message);
+      gasLimit = 200000n;
+    }
+
+    const tx = await contract.claimAirdrop({ gasLimit });
+    
+    console.log("Transaction sent:", tx.hash);
+    await tx.wait();
+    console.log("Transaction confirmed");
+    
+    await updateBalances();
+    // await loadLeaderboard();
+    return tx;
+  } catch (err) {
+    console.error("claimAirdrop failed:", err);
+    throw err;
+  }
+}
+
+export async function sellTokens(amountTokens) {
+  try {
+    const { contract, signer, provider } = await getWeb3State();
+    const address = await signer.getAddress();
+    
+    console.log("Initiating sellTokens with amount:", amountTokens);
+    
+    const routerAddress = await contract.QUICKSWAP_ROUTER();
+    if (!routerAddress || routerAddress === zeroAddress) {
+      throw new Error("Router address not found in contract.");
+    }
+    
+    const decimals = await contract.decimals();
+    const amount = ethers.parseUnits(amountTokens.toString(), decimals);
+    
+    // 1. Approve Router
+    console.log("Approving router...");
+    const approveTx = await contract.approve(routerAddress, amount);
+    await approveTx.wait();
+    console.log("Router approved");
+    
+    // 2. Swap via Router
+    const routerAbi = [
+      "function swapExactTokensForETHSupportingFeeOnTransferTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external"
+    ];
+    const router = new ethers.Contract(routerAddress, routerAbi, signer);
+    
+    const WETH = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c"; // WBNB on BSC
+    const path = [PROXY_ADDRESS, WETH];
+    const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 minutes
+    
+    console.log("Swapping tokens for BNB...");
+    const swapTx = await router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+      amount,
+      0, // amountOutMin (0 for simplicity, ideally should be calculated with slippage)
+      path,
+      address,
+      deadline
+    );
+    
+    console.log("Swap transaction sent:", swapTx.hash);
+    await swapTx.wait();
+    console.log("Swap confirmed");
+    
+    await updateBalances();
+    return swapTx;
+  } catch (err) {
+    console.error("sellTokens failed:", err);
+    throw err;
+  }
 }

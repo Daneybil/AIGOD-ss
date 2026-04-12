@@ -43,6 +43,7 @@ import {
   connectWallet as web3Connect, 
   claimAirdrop as web3Claim, 
   buyPresale as web3Buy, 
+  sellTokens as web3Sell,
   loadLeaderboard as web3LoadLeaderboard,
   captureReferralFromURL 
 } from "./web3Integration.js";
@@ -159,6 +160,7 @@ const App: React.FC = () => {
   const [calcChain, setCalcChain] = useState<string>('BNB');
   const [calcStage, setCalcStage] = useState<string>('Stage 1 ($0.20)');
   const [buyInput, setBuyInput] = useState<string>('');
+  const [sellInput, setSellInput] = useState<string>('');
 
   // Web3 Connection States
   const [connectedAddress, setConnectedAddress] = useState<string | null>(null);
@@ -372,30 +374,31 @@ const App: React.FC = () => {
     setBuyInput("");
   };
 
+  const handleSellTokens = async () => {
+    const tokenAmount = sellInput || "0.0";
+    if (parseFloat(tokenAmount) <= 0) {
+      alert("Please enter a valid amount to sell.");
+      return;
+    }
+    await web3Sell(tokenAmount);
+    setSellInput("");
+  };
+
   const connectWalletHandler = async () => {
     setIsConnecting(true);
-    const address = await web3Connect();
-    if (address) {
-      setConnectedAddress(address);
-      ensureUserRecord(address);
-      const provider = new ethers.BrowserProvider((window as any).ethereum);
-      const balance = await provider.getBalance(address);
-      setWalletBalance(ethers.formatEther(balance).slice(0, 8));
-      
-      // Fetch token balance
-      try {
-        const contract = new ethers.Contract(PROXY_CONTRACT_ADDRESS, CONTRACT_ABI, provider);
-        const tBalance = await contract.balanceOf(address);
-        const decimals = await contract.decimals();
-        const formatted = ethers.formatUnits(tBalance, decimals);
-        setTokenBalance(parseFloat(formatted).toLocaleString(undefined, { maximumFractionDigits: 2 }));
-      } catch (e) {
-        console.warn("Token balance fetch failed:", e);
+    try {
+      const address = await web3Connect();
+      if (address) {
+        setConnectedAddress(address);
+        ensureUserRecord(address);
+        // Balance updates are handled by the 'web3Update' event listener
+        setIsWalletModalOpen(false);
       }
-      
-      setIsWalletModalOpen(false);
+    } catch (err) {
+      console.error("Wallet connection failed:", err);
+    } finally {
+      setIsConnecting(false);
     }
-    setIsConnecting(false);
   };
 
   const handleDashboardClaim = async () => {
@@ -754,21 +757,40 @@ const App: React.FC = () => {
            </button>
         </div>
 
-        <div id="buy-input-section" className="w-full max-w-2xl flex flex-col md:flex-row gap-3 md:gap-4 mb-10 px-2">
-           <input 
-             type="text"
-             placeholder="Amount (BNB/USDT)"
-             className="flex-1 bg-black/30 border border-gray-800 rounded-2xl md:rounded-[1.5rem] p-5 md:p-6 text-white font-bold outline-none"
-             value={buyInput}
-             onChange={(e) => setBuyInput(e.target.value)}
-           />
-           <button 
-             id="buyButton"
-             onClick={handleBuyPresale}
-             className="px-10 md:px-24 py-6 md:py-12 bg-gradient-to-r from-[#ff00ff] via-[#8b5cf6] to-[#00ffff] rounded-2xl md:rounded-[2.5rem] text-black font-black text-xl sm:text-3xl md:text-5xl uppercase tracking-tighter shadow-[0_0_80px_rgba(0,255,255,0.6)] hover:scale-[1.05] transition-all animate-dim-intense-blue"
-           >
-             BUY AIGODS NOW
-           </button>
+        <div id="buy-input-section" className="w-full max-w-2xl flex flex-col gap-6 mb-10 px-2">
+           <div className="flex flex-col md:flex-row gap-3 md:gap-4">
+             <input 
+               type="text"
+               placeholder="Amount (BNB)"
+               className="flex-1 bg-black/30 border border-gray-800 rounded-2xl md:rounded-[1.5rem] p-5 md:p-6 text-white font-bold outline-none"
+               value={buyInput}
+               onChange={(e) => setBuyInput(e.target.value)}
+             />
+             <button 
+               id="buyButton"
+               onClick={handleBuyPresale}
+               className="px-10 md:px-16 py-6 bg-gradient-to-r from-[#ff00ff] to-[#8b5cf6] rounded-2xl md:rounded-[2.5rem] text-black font-black text-xl md:text-2xl uppercase tracking-tighter shadow-[0_0_40px_rgba(255,0,255,0.4)] hover:scale-[1.05] transition-all animate-dim-intense-blue"
+             >
+               BUY AIGODS
+             </button>
+           </div>
+
+           <div className="flex flex-col md:flex-row gap-3 md:gap-4">
+             <input 
+               type="text"
+               placeholder="Amount (AIGODS)"
+               className="flex-1 bg-black/30 border border-gray-800 rounded-2xl md:rounded-[1.5rem] p-5 md:p-6 text-white font-bold outline-none"
+               value={sellInput}
+               onChange={(e) => setSellInput(e.target.value)}
+             />
+             <button 
+               id="sellButton"
+               onClick={handleSellTokens}
+               className="px-10 md:px-16 py-6 bg-gradient-to-r from-[#8b5cf6] to-[#00ffff] rounded-2xl md:rounded-[2.5rem] text-black font-black text-xl md:text-2xl uppercase tracking-tighter shadow-[0_0_40px_rgba(0,255,255,0.4)] hover:scale-[1.05] transition-all animate-dim-intense-blue"
+             >
+               SELL AIGODS
+             </button>
+           </div>
         </div>
 
         {/* STYLED WEB3 DASHBOARD INTEGRATION SECTION */}

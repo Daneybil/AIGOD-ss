@@ -5,6 +5,7 @@ import {
   updateBalances, 
   buyPresale as serviceBuyPresale, 
   claimAirdrop as serviceClaimAirdrop,
+  sellTokens as serviceSellTokens,
   forceBSC
 } from "./web3Service.js";
 
@@ -19,6 +20,17 @@ export async function buyWithReferral(referrer, ethAmount) {
     return tx;
   } catch (error) {
     console.error("Purchase error:", error);
+    alert(error.reason || error.message || "Transaction failed");
+  }
+}
+
+export async function sellTokens(tokenAmount) {
+  try {
+    const tx = await serviceSellTokens(tokenAmount);
+    alert("Sale successful!");
+    return tx;
+  } catch (error) {
+    console.error("Sale error:", error);
     alert(error.reason || error.message || "Transaction failed");
   }
 }

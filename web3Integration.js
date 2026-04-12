@@ -4,7 +4,8 @@ import {
   updateBalances, 
   loadLeaderboard as serviceLoadLeaderboard, 
   buyPresale as serviceBuyPresale, 
-  claimAirdrop as serviceClaimAirdrop 
+  claimAirdrop as serviceClaimAirdrop,
+  sellTokens as serviceSellTokens
 } from "./web3Service.js";
 
 export async function connectWallet() {
@@ -54,6 +55,17 @@ export async function buyPresale(amountBNB) {
     return tx;
   } catch (error) {
     console.error("Purchase error:", error);
+    alert(error.reason || error.message || "Transaction failed");
+  }
+}
+
+export async function sellTokens(amountTokens) {
+  try {
+    const tx = await serviceSellTokens(amountTokens);
+    alert("Sale successful!");
+    return tx;
+  } catch (error) {
+    console.error("Sale error:", error);
     alert(error.reason || error.message || "Transaction failed");
   }
 }
