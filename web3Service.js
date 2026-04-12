@@ -56,14 +56,32 @@ export async function getWeb3State() {
   
   if (!window.ethereum) throw new Error("No crypto wallet found");
   
-  await forceBSC();
+  try {
+    await forceBSC();
+  } catch (bscErr) {
+    console.warn("forceBSC failed or was cancelled:", bscErr.message);
+    // Continue anyway, as the user might already be on the right network or wants to try
+  }
   
   provider = new ethers.BrowserProvider(window.ethereum);
   signer = await provider.getSigner();
   
-  const code = await provider.getCode(PROXY_ADDRESS);
+  let code;
+  try {
+    code = await provider.getCode(PROXY_ADDRESS);
+  } catch (err) {
+    console.warn("getCode failed, trying fallback RPC:", err.message);
+    // Fallback to check if contract exists via public RPC if wallet provider fails
+    try {
+      const fallbackProvider = new ethers.JsonRpcProvider(BSC_RPC_URLS[0]);
+      code = await fallbackProvider.getCode(PROXY_ADDRESS);
+    } catch (fallbackErr) {
+      throw new Error("Network connection error. Please ensure you are on Binance Smart Chain and have a stable internet connection.");
+    }
+  }
+
   if (code === "0x" || code === "0x0") {
-    throw new Error("Contract not found on this network. Please check your network settings.");
+    throw new Error("Contract not found on this network. Please ensure your wallet is connected to Binance Smart Chain (BSC).");
   }
   
   contract = new ethers.Contract(PROXY_ADDRESS, ABI, signer);
@@ -81,7 +99,8 @@ export async function updateBalances() {
     // Fetch referrals from contract if function exists
     let referrals = 0;
     try {
-      referrals = Number(await contract.getReferralCount(address));
+      // Note: getReferralCount is not in the current ABI, using fallback or 0
+      // referrals = Number(await contract.getReferralCount(address));
     } catch (e) {
       console.warn("getReferralCount not found in ABI");
     }
@@ -114,48 +133,26 @@ export async function updateBalances() {
 }
 
 export async function loadLeaderboard() {
-  let fetchContract = contract;
-  if (!fetchContract) {
-    for (const rpc of BSC_RPC_URLS) {
-      try {
-        const readProvider = new ethers.JsonRpcProvider(rpc);
-        fetchContract = new ethers.Contract(PROXY_ADDRESS, ABI, readProvider);
-        break;
-      } catch (e) {
-        continue;
-      }
-    }
+  // Note: getTopReferrers is not in the current ABI, returning empty list
+  console.warn("getTopReferrers not found in ABI, leaderboard disabled");
+  if (window.renderLeaderboard) {
+    window.renderLeaderboard([]);
   }
-  
-  if (!fetchContract) return;
-
-  try {
-    const [addresses, counts] = await fetchContract.getTopReferrers();
-    const detailedData = addresses.map((addr, index) => ({
-      address: addr,
-      referrals: Number(counts[index])
-    })).filter(item => item.address !== ethers.ZeroAddress);
-
-    if (window.renderLeaderboard) {
-      window.renderLeaderboard(detailedData);
-    }
-    return detailedData;
-  } catch (err) {
-    console.error("Leaderboard fetch failed:", err.message);
-  }
+  return [];
 }
 
 export async function buyPresale(amountBNB) {
   const { contract } = await getWeb3State();
   const referralAddress = localStorage.getItem("aigods_referrer") || zeroAddress;
   
-  const tx = await contract.buyPreSale(referralAddress, {
+  // Using buyTokensWithReferral as per ABI
+  const tx = await contract.buyTokensWithReferral(referralAddress, {
     value: ethers.parseEther(amountBNB.toString())
   });
   
   await tx.wait();
   await updateBalances();
-  await loadLeaderboard();
+  // await loadLeaderboard();
   return tx;
 }
 

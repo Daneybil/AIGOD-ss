@@ -17,7 +17,12 @@ export async function connectWallet() {
   } catch (err) {
     console.error("Connection error:", err.message);
     if (err.code !== 4001) {
-      alert("Connection error: " + (err.reason || err.message));
+      const msg = err.reason || err.message || "Unknown error";
+      if (msg.includes("Failed to fetch") || msg.includes("getCode")) {
+        alert("Connection Error: Unable to reach the blockchain network. Please check your internet connection and ensure your wallet is set to Binance Smart Chain.");
+      } else {
+        alert("Connection error: " + msg);
+      }
     }
     return null;
   }

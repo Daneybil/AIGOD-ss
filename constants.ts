@@ -11,12 +11,13 @@ export const FIREBASE_CONFIG = {
 };
 
 export const BSC_RPC_URLS = [
+  "https://binance.llamarpc.com",
   "https://bsc-dataseed.binance.org/",
   "https://bsc-dataseed1.defibit.io/",
-  "https://bsc-dataseed1.ninicoin.io/"
+  "https://rpc.ankr.com/bsc"
 ];
 
-export const PROXY_CONTRACT_ADDRESS = '0xACe6De8F6c453882074cd796d3ae6A070777d65e';
+export const PROXY_CONTRACT_ADDRESS = '0xbb89b668e5816050B20f4E11D2Ce1D498a663aCA';
 
 export const BG_LOGO_TOP = 'https://storage.googleapis.com/static.antigravity.ai/asb/daneybil2020%40gmail.com/1743075154330.png';
 export const BG_LOGO_CENTER = 'https://storage.googleapis.com/static.antigravity.ai/asb/daneybil2020%40gmail.com/1743075157434.png';
