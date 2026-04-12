@@ -22,66 +22,93 @@ async function getDb() {
 }
 
 export async function forceBSC() {
-  if (!window.ethereum) throw new Error("No wallet found");
+  if (!window.ethereum) throw new Error("No crypto wallet found. Please install MetaMask or Trust Wallet.");
+  
   const chainId = "0x38"; // BSC Mainnet
+  const chainConfig = {
+    chainId,
+    chainName: "Binance Smart Chain",
+    nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
+    rpcUrls: ["https://bsc-dataseed.binance.org/"],
+    blockExplorerUrls: ["https://bscscan.com/"]
+  };
+
   try {
     const currentChainId = await window.ethereum.request({ method: "eth_chainId" });
     if (currentChainId === chainId) return;
-    await window.ethereum.request({
-      method: "wallet_switchEthereumChain",
-      params: [{ chainId }]
-    });
-  } catch (switchError) {
-    if (switchError.code === 4902) {
+    
+    try {
       await window.ethereum.request({
-        method: "wallet_addEthereumChain",
-        params: [{
-          chainId,
-          chainName: "Binance Smart Chain",
-          nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
-          rpcUrls: BSC_RPC_URLS,
-          blockExplorerUrls: ["https://bscscan.com"]
-        }]
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId }]
       });
-    } else {
-      throw switchError;
+    } catch (switchError) {
+      // Error code 4902 means the chain has not been added
+      if (switchError.code === 4902 || (switchError.data && switchError.data.originalError && switchError.data.originalError.code === 4902)) {
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [chainConfig]
+        });
+      } else {
+        throw switchError;
+      }
     }
+  } catch (err) {
+    console.error("Network switch failed:", err);
+    throw new Error("Please switch your wallet network to Binance Smart Chain (BSC).");
   }
 }
 
 export async function getWeb3State() {
   if (provider && signer && contract) {
-    return { provider, signer, contract };
+    try {
+      // Verify connection is still active
+      await signer.getAddress();
+      return { provider, signer, contract };
+    } catch (e) {
+      // Re-initialize if stale
+      provider = null;
+      signer = null;
+      contract = null;
+    }
   }
   
-  if (!window.ethereum) throw new Error("No crypto wallet found");
+  if (!window.ethereum) {
+    throw new Error("No crypto wallet found. Please install MetaMask or use Trust Wallet.");
+  }
   
+  // Request account access explicitly for better compatibility
   try {
-    await forceBSC();
-  } catch (bscErr) {
-    console.warn("forceBSC failed or was cancelled:", bscErr.message);
-    // Continue anyway, as the user might already be on the right network or wants to try
+    await window.ethereum.request({ method: 'eth_requestAccounts' });
+  } catch (err) {
+    if (err.code === 4001) {
+      throw new Error("Connection request was rejected. Please connect your wallet to proceed.");
+    }
+    throw err;
   }
+  
+  // Ensure we are on BSC
+  await forceBSC();
   
   provider = new ethers.BrowserProvider(window.ethereum);
   signer = await provider.getSigner();
   
-  let code;
+  // Verify contract existence
+  let code = "0x";
   try {
     code = await provider.getCode(PROXY_ADDRESS);
   } catch (err) {
-    console.warn("getCode failed, trying fallback RPC:", err.message);
-    // Fallback to check if contract exists via public RPC if wallet provider fails
+    console.warn("getCode failed, trying fallback:", err.message);
     try {
-      const fallbackProvider = new ethers.JsonRpcProvider(BSC_RPC_URLS[0]);
+      const fallbackProvider = new ethers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
       code = await fallbackProvider.getCode(PROXY_ADDRESS);
     } catch (fallbackErr) {
-      throw new Error("Network connection error. Please ensure you are on Binance Smart Chain and have a stable internet connection.");
+      console.error("Fallback check failed:", fallbackErr);
     }
   }
 
   if (code === "0x" || code === "0x0") {
-    throw new Error("Contract not found on this network. Please ensure your wallet is connected to Binance Smart Chain (BSC).");
+    console.warn("Contract not found at address on current network:", PROXY_ADDRESS);
   }
   
   contract = new ethers.Contract(PROXY_ADDRESS, ABI, signer);

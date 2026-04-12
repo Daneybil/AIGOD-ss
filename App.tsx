@@ -495,7 +495,7 @@ const App: React.FC = () => {
   }, [currentUserReferrals]);
 
   return (
-    <div className="min-h-screen w-full relative flex flex-col items-center bg-black overflow-x-hidden pb-10 font-inter text-white">
+    <div className="min-h-screen w-full relative flex flex-col items-center bg-transparent overflow-x-hidden pb-10 font-inter text-white">
       <ParticleBackground />
 
       {/* BACKGROUND LOGOS WITH ZOOM ANIMATION - HUGE BILLBOARD FORM */}
@@ -513,6 +513,9 @@ const App: React.FC = () => {
           <img src={BG_LOGO_BOTTOM} alt="Background Logo Bottom" className="w-full h-auto filter brightness-150 contrast-150 drop-shadow-[0_0_200px_rgba(0,150,255,0.6)]" onError={handleImageError} />
         </div>
       </div>
+
+      {/* Balanced Background Overlay for Premium Feel - Adjusted for stable, premium look */}
+      <div className="fixed inset-0 pointer-events-none z-[-1] bg-black/50 backdrop-blur-[1.5px]" />
 
       <div className="top-nav-fixed w-full flex items-center justify-between px-4 md:px-10 py-6 z-[50]">
         <div className="flex items-center gap-2 md:gap-6">

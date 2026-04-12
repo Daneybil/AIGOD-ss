@@ -11,9 +11,9 @@ const ParticleBackground: React.FC = () => {
 
   return (
     <div className="fixed inset-0 -z-20 overflow-hidden pointer-events-none bg-[#0b0b0f]">
-      {/* Dark gradient base */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0b0b0f]/40 via-[#0b0b0f]/30 to-[#0b0b0f]/50" />
-      <div className="absolute inset-0 animate-pulse-slow bg-cyan-500/10 mix-blend-screen" />
+      {/* Dark gradient base - Balanced for visibility and readability */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0b0b0f]/40 via-[#0b0b0f]/35 to-[#0b0b0f]/45" />
+      <div className="absolute inset-0 animate-pulse-slow bg-cyan-500/5 mix-blend-screen" />
 
       {/* Animated Background Logos - Permanent Billboard */}
       <div className="absolute inset-0 z-[-10] flex items-center justify-center pointer-events-none opacity-80">
@@ -70,15 +70,15 @@ const ParticleBackground: React.FC = () => {
         </div>
       </div>
 
-      {/* Subtle overlay for readability - Adjusted for better visibility of logos */}
-      <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px] z-[-5]"></div>
+      {/* Subtle base overlay for depth - Adjusted for balance */}
+      <div className="absolute inset-0 bg-black/20 z-[-5]"></div>
 
       <div 
-        className="absolute inset-0 bg-center bg-no-repeat opacity-15 z-[-8]"
+        className="absolute inset-0 bg-center bg-no-repeat opacity-25 z-[-8]"
         style={{ 
           backgroundImage: `url('${AIGODS_LOGO_URL}')`,
           backgroundSize: 'contain',
-          filter: 'brightness(0.4) contrast(1.2)',
+          filter: 'brightness(0.6) contrast(1.1)',
         }}
       />
 
