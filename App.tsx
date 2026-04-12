@@ -197,6 +197,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleWeb3Update = (event: any) => {
       if (event.detail.tokenBalance) setTokenBalance(event.detail.tokenBalance);
+      if (event.detail.bnbBalance) setWalletBalance(event.detail.bnbBalance);
       if (event.detail.referrals !== undefined) setCurrentUserReferrals(event.detail.referrals);
       if (event.detail.address) setConnectedAddress(event.detail.address);
     };
@@ -417,6 +418,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const handleWeb3Update = (e: any) => {
       if (e.detail.tokenBalance) setTokenBalance(e.detail.tokenBalance);
+      if (e.detail.bnbBalance) setWalletBalance(e.detail.bnbBalance);
       if (e.detail.referrals !== undefined) setCurrentUserReferrals(e.detail.referrals);
     };
     window.addEventListener('web3Update', handleWeb3Update);

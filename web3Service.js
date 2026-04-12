@@ -88,9 +88,21 @@ export async function getWeb3State() {
   }
   
   // Ensure we are on BSC
-  await forceBSC();
+  try {
+    await forceBSC();
+  } catch (err) {
+    console.warn("forceBSC failed, but continuing with current network:", err.message);
+    // We still try to proceed, but some functions might fail if not on BSC
+  }
   
   provider = new ethers.BrowserProvider(window.ethereum);
+  
+  // Re-verify network after provider initialization
+  const network = await provider.getNetwork();
+  if (Number(network.chainId) !== 56) {
+    console.warn("Provider is not on BSC (Chain ID 56). Current Chain ID:", network.chainId);
+  }
+
   signer = await provider.getSigner();
   
   // Verify contract existence
@@ -117,11 +129,27 @@ export async function getWeb3State() {
 
 export async function updateBalances() {
   try {
-    const { signer, contract } = await getWeb3State();
+    const { provider, signer, contract } = await getWeb3State();
     const address = await signer.getAddress();
-    const balance = await contract.balanceOf(address);
-    const decimals = await contract.decimals();
-    const formatted = ethers.formatUnits(balance, decimals);
+    
+    // Fetch Token Balance
+    let tokenBal = "0.00";
+    try {
+      const balance = await contract.balanceOf(address);
+      const decimals = await contract.decimals();
+      tokenBal = ethers.formatUnits(balance, decimals);
+    } catch (e) {
+      console.warn("Token balance fetch failed:", e.message);
+    }
+
+    // Fetch BNB Balance
+    let bnbBal = "0.00";
+    try {
+      const balanceBNB = await provider.getBalance(address);
+      bnbBal = ethers.formatEther(balanceBNB);
+    } catch (e) {
+      console.warn("BNB balance fetch failed:", e.message);
+    }
     
     // Fetch referrals from contract if function exists
     let referrals = 0;
@@ -129,7 +157,7 @@ export async function updateBalances() {
       // Note: getReferralCount is not in the current ABI, using fallback or 0
       // referrals = Number(await contract.getReferralCount(address));
     } catch (e) {
-      console.warn("getReferralCount not found in ABI");
+      // console.warn("getReferralCount not found in ABI");
     }
 
     // Sync with Firebase
@@ -141,19 +169,20 @@ export async function updateBalances() {
         lastUpdated: new Date().toISOString()
       }, { merge: true });
     } catch (e) {
-      console.warn("Firebase sync failed:", e.message);
+      // console.warn("Firebase sync failed:", e.message);
     }
 
     // Dispatch event for React
     window.dispatchEvent(new CustomEvent('web3Update', { 
       detail: { 
-        tokenBalance: parseFloat(formatted).toLocaleString(undefined, { maximumFractionDigits: 2 }),
+        tokenBalance: parseFloat(tokenBal).toLocaleString(undefined, { maximumFractionDigits: 2 }),
+        bnbBalance: parseFloat(bnbBal).toFixed(4),
         referrals: referrals,
         address: address
       } 
     }));
     
-    return { balance: formatted, referrals };
+    return { balance: tokenBal, bnbBalance: bnbBal, referrals };
   } catch (e) {
     console.error("Balance update failed:", e.message);
   }
