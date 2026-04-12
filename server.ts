@@ -17,8 +17,10 @@ app.listen(PORT, "0.0.0.0", () => {
 });
 
 // --- 3. IMMEDIATE PRODUCTION SERVING ---
-// We serve the website files immediately so the screen clears.
-app.use(express.static(distPath));
+// We serve the website files immediately in production so the screen clears.
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(distPath));
+}
 
 // --- 4. DYNAMIC LOADING OF HEAVY LIBRARIES ---
 // We load these in the background so they don't block the server startup.
@@ -34,6 +36,16 @@ const initializeApp = async () => {
   app.use(cors());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+
+  // --- 4.5 VITE MIDDLEWARE FOR DEVELOPMENT ---
+  if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  }
 
   const upload = multer({ storage: multer.memoryStorage() });
   const NVIDIA_CHAT_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
@@ -76,7 +88,7 @@ const initializeApp = async () => {
         max_tokens: 5,
       }, {
         headers: { Authorization: `Bearer ${thinkingKey}`, "Content-Type": "application/json" },
-        timeout: 30000
+        timeout: 60000
       });
       results.thinking = { status: "✅ Success", details: "API responded correctly" };
     } catch (error: any) {
@@ -104,7 +116,7 @@ const initializeApp = async () => {
           "Content-Type": "application/json",
           "Accept": "audio/mpeg"
         },
-        timeout: 30000
+        timeout: 60000
       });
       results.tts = { status: "✅ Success", details: "API responded correctly" };
     } catch (error: any) {
@@ -128,6 +140,7 @@ const initializeApp = async () => {
         max_tokens: 1024,
       }, {
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        timeout: 60000
       });
       res.json(response.data);
     } catch (error: any) {
@@ -152,7 +165,8 @@ const initializeApp = async () => {
         headers: { 
           ...form.getHeaders(),
           Authorization: `Bearer ${key}`
-        }
+        },
+        timeout: 60000
       });
       res.json(response.data);
     } catch (error: any) {
@@ -177,6 +191,7 @@ const initializeApp = async () => {
           "Accept": "audio/mpeg"
         },
         responseType: "arraybuffer",
+        timeout: 60000
       });
       res.set("Content-Type", "audio/mpeg");
       res.send(Buffer.from(response.data));
@@ -205,6 +220,7 @@ const initializeApp = async () => {
         max_tokens: 1024,
       }, {
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        timeout: 60000
       });
       res.json(response.data);
     } catch (error: any) {
@@ -214,9 +230,11 @@ const initializeApp = async () => {
   });
 
   // --- 5. SPA FALLBACK ---
-  app.get("*all", (req, res) => {
-    res.sendFile(path.join(distPath, "index.html"));
-  });
+  if (process.env.NODE_ENV === "production") {
+    app.get("*all", (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
+    });
+  }
 
   // --- 6. GLOBAL ERROR HANDLER ---
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

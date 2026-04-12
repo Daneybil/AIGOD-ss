@@ -462,17 +462,17 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
                         src={logoUrl} 
                         initial={{ opacity: 0, scale: 0.8 }}
                         animate={{ 
-                          opacity: [0.1, 0.2, 0.1],
+                          opacity: [0.2, 0.4, 0.2],
                           scale: [1, 1.1, 1],
                           rotate: [0, 5, -5, 0],
-                          filter: ['blur(4px)', 'blur(0px)', 'blur(4px)']
+                          filter: ['blur(2px)', 'blur(0px)', 'blur(2px)']
                         }}
                         transition={{ 
                           duration: 15, 
                           repeat: Infinity, 
                           ease: "easeInOut" 
                         }}
-                        className="w-96 h-96 md:w-[600px] md:h-[600px] object-contain grayscale brightness-[0.6]" 
+                        className="w-96 h-96 md:w-[600px] md:h-[600px] object-contain grayscale brightness-125 contrast-125" 
                         onError={handleImageError}
                       />
                       
@@ -481,7 +481,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
                         src={logoUrl} 
                         initial={{ opacity: 0, scale: 1.2 }}
                         animate={{ 
-                          opacity: [0, 0.08, 0],
+                          opacity: [0, 0.15, 0],
                           scale: [1.2, 0.95, 1.2],
                           rotate: [0, -15, 15, 0]
                         }}
@@ -490,7 +490,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ logoUrl }) => {
                           repeat: Infinity, 
                           ease: "linear" 
                         }}
-                        className="absolute w-96 h-96 md:w-[600px] md:h-[600px] object-contain grayscale brightness-[0.4] blur-lg"
+                        className="absolute w-96 h-96 md:w-[600px] md:h-[600px] object-contain grayscale brightness-100 blur-lg"
                       />
 
                       {/* Ambient Glow - More intense */}

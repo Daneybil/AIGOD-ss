@@ -499,18 +499,18 @@ const App: React.FC = () => {
       <ParticleBackground />
 
       {/* BACKGROUND LOGOS WITH ZOOM ANIMATION - HUGE BILLBOARD FORM */}
-      <div className="fixed inset-0 pointer-events-none z-[-1] overflow-hidden opacity-70">
+      <div className="fixed inset-0 pointer-events-none z-[-1] overflow-hidden opacity-100">
         {/* TOP LOGO */}
-        <div className="absolute top-[5%] left-1/2 -translate-x-1/2 w-[120vw] md:w-[100vw] animate-zoom-in-out opacity-40">
-          <img src={BG_LOGO_TOP} alt="Background Logo Top" className="w-full h-auto filter brightness-75 contrast-150 drop-shadow-[0_0_120px_rgba(0,100,255,0.3)]" onError={handleImageError} />
+        <div className="absolute top-[5%] left-1/2 -translate-x-1/2 w-[120vw] md:w-[100vw] animate-zoom-in-out opacity-80">
+          <img src={BG_LOGO_TOP} alt="Background Logo Top" className="w-full h-auto filter brightness-150 contrast-150 drop-shadow-[0_0_200px_rgba(0,150,255,0.6)]" onError={handleImageError} />
         </div>
         {/* CENTER LOGO - THE MAIN BILLBOARD */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vw] md:w-[120vw] animate-zoom-in-out" style={{ animationDelay: '5s' }}>
-          <img src={BG_LOGO_CENTER} alt="Background Logo Center" className="w-full h-auto filter brightness-90 contrast-150 drop-shadow-[0_0_150px_rgba(0,100,255,0.4)]" onError={handleImageError} />
+          <img src={BG_LOGO_CENTER} alt="Background Logo Center" className="w-full h-auto filter brightness-200 contrast-150 drop-shadow-[0_0_250px_rgba(0,150,255,0.8)]" onError={handleImageError} />
         </div>
         {/* BOTTOM LOGO */}
-        <div className="absolute bottom-[5%] left-1/2 -translate-x-1/2 w-[120vw] md:w-[100vw] animate-zoom-in-out opacity-40" style={{ animationDelay: '10s' }}>
-          <img src={BG_LOGO_BOTTOM} alt="Background Logo Bottom" className="w-full h-auto filter brightness-75 contrast-150 drop-shadow-[0_0_120px_rgba(0,100,255,0.3)]" onError={handleImageError} />
+        <div className="absolute bottom-[5%] left-1/2 -translate-x-1/2 w-[120vw] md:w-[100vw] animate-zoom-in-out opacity-80" style={{ animationDelay: '10s' }}>
+          <img src={BG_LOGO_BOTTOM} alt="Background Logo Bottom" className="w-full h-auto filter brightness-150 contrast-150 drop-shadow-[0_0_200px_rgba(0,150,255,0.6)]" onError={handleImageError} />
         </div>
       </div>
 
@@ -571,7 +571,7 @@ const App: React.FC = () => {
            </button>
            <img 
              src={AIGODS_LOGO_URL} 
-             className="w-10 h-10 md:w-16 md:h-16 rounded-full border-2 border-white/20 animate-coin-rotate-y animate-dim-light-blue shadow-[0_0_20px_rgba(255,255,255,0.1)]" 
+             className="w-10 h-10 md:w-16 md:h-16 rounded-full border-2 border-white/40 animate-coin-rotate-y animate-dim-light-blue shadow-[0_0_40px_rgba(0,255,255,0.6)] brightness-125 contrast-125" 
              alt="logo" 
              style={{ display: 'block', visibility: 'visible', opacity: 1 }}
              onError={handleImageError}
@@ -731,7 +731,7 @@ const App: React.FC = () => {
               </select>
            </div>
 
-           <div className="bg-black/60 p-6 md:p-10 rounded-[1.5rem] md:rounded-[2rem] border border-gray-800 text-center">
+           <div className="bg-black/30 p-6 md:p-10 rounded-[1.5rem] md:rounded-[2rem] border border-gray-800 text-center">
               <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mb-4">EQUIVALENT AIGODS TOKENS</p>
               <p className="text-4xl sm:text-6xl md:text-8xl font-black text-cyan-400 leading-none mb-6 truncate">{calculatedTokens.toLocaleString()}</p>
               <p className="text-[10px] md:text-[11px] font-bold text-[#16da64]">
@@ -753,7 +753,7 @@ const App: React.FC = () => {
            <input 
              type="text"
              placeholder="Amount (BNB/USDT)"
-             className="flex-1 bg-black/60 border border-gray-800 rounded-2xl md:rounded-[1.5rem] p-5 md:p-6 text-white font-bold outline-none"
+             className="flex-1 bg-black/30 border border-gray-800 rounded-2xl md:rounded-[1.5rem] p-5 md:p-6 text-white font-bold outline-none"
              value={buyInput}
              onChange={(e) => setBuyInput(e.target.value)}
            />
@@ -767,7 +767,7 @@ const App: React.FC = () => {
         </div>
 
         {/* STYLED WEB3 DASHBOARD INTEGRATION SECTION */}
-        <div className="w-full max-w-2xl bg-[#0a0a1a] border border-cyan-500/20 rounded-[2.5rem] p-8 md:p-12 mb-20 text-center shadow-[0_0_50px_rgba(0,0,0,1)] mx-auto relative z-10">
+        <div className="w-full max-w-2xl bg-[#0a0a1a]/60 border border-cyan-500/20 rounded-[2.5rem] p-8 md:p-12 mb-20 text-center shadow-[0_0_50px_rgba(0,0,0,1)] mx-auto relative z-10">
           <h3 className="text-[#00ffff] font-black text-2xl md:text-[2.75rem] uppercase tracking-tighter mb-10 leading-[0.9]">
             WEB3 DASHBOARD<br/>INTEGRATION
           </h3>
@@ -785,12 +785,12 @@ const App: React.FC = () => {
               ADD AIGODS COIN TO WALLET
             </button>
             
-            <div className="mt-6 p-6 md:p-10 bg-black/40 rounded-2xl md:rounded-[2rem] border border-gray-800/40 flex items-center justify-between shadow-inner">
+            <div className="mt-6 p-6 md:p-10 bg-black/20 rounded-2xl md:rounded-[2rem] border border-gray-800/40 flex items-center justify-between shadow-inner">
               <span className="text-gray-400 text-xs md:text-xl uppercase font-black tracking-tighter">MY REFERRALS:</span>
               <span id="myReferrals" className="text-[#00ffff] text-4xl md:text-6xl font-black italic">0</span>
             </div>
             
-            <div className="p-6 md:p-10 bg-black/40 rounded-2xl md:rounded-[2rem] border border-gray-800/40 flex items-center justify-between shadow-inner">
+            <div className="p-6 md:p-10 bg-black/20 rounded-2xl md:rounded-[2rem] border border-gray-800/40 flex items-center justify-between shadow-inner">
               <span className="text-gray-400 text-xs md:text-xl uppercase font-black tracking-tighter">TOKEN BALANCE:</span>
               <div className="flex items-baseline gap-2">
                 <span id="userTokenBalance" className="text-[#f3ba2f] text-2xl md:text-4xl font-black italic">{tokenBalance}</span>
@@ -800,7 +800,7 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="w-full max-w-2xl bg-[#080812]/80 backdrop-blur-md border border-gray-800 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-12 text-center shadow-2xl mb-8 md:mb-10">
+        <div className="w-full max-w-2xl bg-[#080812]/40 backdrop-blur-md border border-gray-800 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-12 text-center shadow-2xl mb-8 md:mb-10">
            <h3 className="text-white font-black text-base md:text-xl uppercase tracking-widest mb-8 md:mb-10">COMPLETE TASKS BEFORE CLAIMING</h3>
            <div className="flex flex-col gap-5 md:gap-6 max-sm mx-auto text-left">
               {[
@@ -845,7 +845,7 @@ const App: React.FC = () => {
           </button>
         </div>
 
-        <div className="w-full max-w-4xl bg-[#080812] border border-gray-800/60 rounded-[3rem] p-6 md:p-16 mb-20 md:mb-24 relative overflow-hidden text-center shadow-[0_0_100px_rgba(0,0,0,0.9)]">
+        <div className="w-full max-w-4xl bg-[#080812]/60 border border-gray-800/60 rounded-[3rem] p-6 md:p-16 mb-20 md:mb-24 relative overflow-hidden text-center shadow-[0_0_100px_rgba(0,0,0,0.9)]">
            <h3 className="text-3xl sm:text-5xl md:text-[5.5rem] font-black italic tracking-tighter uppercase leading-none mb-8 md:mb-10">
              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00ffff] to-[#ff00ff]">BECOME AN AIGODS</span> <br/>
              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00ffff] to-[#ff00ff]">ARCHITECT</span>
@@ -933,7 +933,7 @@ const App: React.FC = () => {
         <LogoGrid />
         
         <div className="w-full max-w-4xl px-4 mt-20 md:mt-24">
-          <div className="bg-[#050508] border border-green-500/20 rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 text-center relative overflow-hidden shadow-2xl">
+          <div className="bg-[#050508]/60 border border-green-500/20 rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 text-center relative overflow-hidden shadow-2xl">
              <div className="bg-green-500/10 w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 md:mb-8 border border-green-500/30">
                 <ShieldCheck size={32} className="text-green-500 md:w-[40px] md:h-[40px]" />
              </div>
