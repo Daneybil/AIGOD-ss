@@ -831,7 +831,7 @@ const App: React.FC = () => {
             
             <div className="mt-6 p-6 md:p-10 bg-black/20 rounded-2xl md:rounded-[2rem] border border-gray-800/40 flex items-center justify-between shadow-inner">
               <span className="text-gray-400 text-xs md:text-xl uppercase font-black tracking-tighter">MY REFERRALS:</span>
-              <span id="myReferrals" className="text-[#00ffff] text-4xl md:text-6xl font-black italic">0</span>
+              <span id="myReferrals" className="text-[#00ffff] text-4xl md:text-6xl font-black italic">{userReferrals}</span>
             </div>
             
             <div className="p-6 md:p-10 bg-black/20 rounded-2xl md:rounded-[2rem] border border-gray-800/40 flex items-center justify-between shadow-inner">

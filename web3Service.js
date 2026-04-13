@@ -10,6 +10,29 @@ let provider = null;
 let signer = null;
 let contract = null;
 let db = null;
+let connectedAddress = null;
+
+// Public state for reading (more stable than wallet provider)
+let publicProvider = null;
+let publicContract = null;
+
+async function getPublicState() {
+  if (publicProvider && publicContract) return { publicProvider, publicContract };
+  
+  // Try RPCs until one works
+  for (const rpc of BSC_RPC_URLS) {
+    try {
+      publicProvider = new ethers.JsonRpcProvider(rpc);
+      // Test connection
+      await publicProvider.getBlockNumber();
+      publicContract = new ethers.Contract(PROXY_ADDRESS, ABI, publicProvider);
+      return { publicProvider, publicContract };
+    } catch (e) {
+      console.warn(`Public RPC ${rpc} failed, trying next...`);
+    }
+  }
+  throw new Error("All public RPCs failed. Please check your internet connection.");
+}
 
 // Initialize Firebase lazily
 async function getDb() {
@@ -123,6 +146,7 @@ export async function getWeb3State() {
   await new Promise(resolve => setTimeout(resolve, 500));
   
   signer = await provider.getSigner();
+  connectedAddress = await signer.getAddress();
   
   // 4. Verify network again after account access with retry
   let network;
@@ -168,42 +192,63 @@ export async function getWeb3State() {
 
 export async function updateBalances() {
   try {
-    const { provider, signer, contract } = await getWeb3State();
-    const address = await signer.getAddress();
+    // 1. Get address from stored state or wallet safely
+    let address = connectedAddress;
     
-    console.log("Fetching balances for:", address);
+    if (!address && window.ethereum && window.ethereum.selectedAddress) {
+      address = window.ethereum.selectedAddress;
+      connectedAddress = address;
+    }
+    
+    if (!address) {
+      try {
+        // Only call getWeb3State if we absolutely have no address
+        const { signer: walletSigner } = await getWeb3State();
+        address = await walletSigner.getAddress();
+        connectedAddress = address;
+      } catch (e) {
+        console.warn("Could not get address for balance update:", e.message);
+        // If we can't get an address, we can't fetch personalized balances
+        return { balance: "0.00", bnbBalance: "0.00", referrals: 0 };
+      }
+    }
+
+    // 2. Use Public RPC for reading data (fixes "Failed to fetch")
+    const { publicProvider, publicContract } = await getPublicState();
+    
+    console.log("Fetching balances via Public RPC for:", address);
 
     // Fetch Token Balance
     let tokenBal = "0.00";
     try {
-      const balance = await contract.balanceOf(address);
-      const decimals = await contract.decimals();
+      const balance = await publicContract.balanceOf(address);
+      const decimals = await publicContract.decimals();
       tokenBal = ethers.formatUnits(balance, decimals);
     } catch (e) {
-      console.warn("Token balance fetch failed:", e.message);
+      console.warn("Token balance fetch failed via Public RPC:", e.message);
     }
 
     // Fetch BNB Balance
     let bnbBal = "0.00";
     try {
-      const balanceBNB = await provider.getBalance(address);
+      const balanceBNB = await publicProvider.getBalance(address);
       bnbBal = ethers.formatEther(balanceBNB);
     } catch (e) {
-      console.warn("BNB balance fetch failed:", e.message);
+      console.warn("BNB balance fetch failed via Public RPC:", e.message);
     }
     
     // Format balances for display
     const formattedTokenBalance = isNaN(parseFloat(tokenBal)) ? "0.00" : parseFloat(tokenBal).toLocaleString(undefined, { maximumFractionDigits: 2 });
     const formattedBnbBalance = isNaN(parseFloat(bnbBal)) ? "0.0000" : parseFloat(bnbBal).toFixed(4);
 
-    console.log("Balances updated:", { token: formattedTokenBalance, bnb: formattedBnbBalance });
+    console.log("Balances updated (Public RPC):", { token: formattedTokenBalance, bnb: formattedBnbBalance });
 
-    // Fetch referrals from contract if function exists
+    // Fetch referrals from contract
     let referrals = 0;
     try {
-      referrals = Number(await contract.getReferralCount(address));
+      referrals = Number(await publicContract.getReferralCount(address));
     } catch (e) {
-      console.warn("getReferralCount failed:", e.message);
+      console.warn("getReferralCount failed via Public RPC:", e.message);
     }
 
     // Sync with Firebase
@@ -237,8 +282,8 @@ export async function updateBalances() {
 
 export async function loadLeaderboard() {
   try {
-    const { contract } = await getWeb3State();
-    const [addresses, counts] = await contract.getTopReferrers();
+    const { publicContract } = await getPublicState();
+    const [addresses, counts] = await publicContract.getTopReferrers();
     
     const leaderboard = addresses.map((addr, i) => ({
       address: addr,
@@ -250,7 +295,7 @@ export async function loadLeaderboard() {
     }
     return leaderboard;
   } catch (e) {
-    console.error("loadLeaderboard failed:", e.message);
+    console.error("loadLeaderboard failed via Public RPC:", e.message);
     if (window.renderLeaderboard) {
       window.renderLeaderboard([]);
     }

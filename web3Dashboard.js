@@ -70,12 +70,17 @@ export async function addTokenToWallet() {
   const tokenAddress = PROXY_CONTRACT_ADDRESS;
   const tokenSymbol = "AIGODS";
   const tokenDecimals = 18;
-  const targetChainId = "0x38";
   const tokenImage = "https://i.imgur.com/GJ4BNah.png";
 
   try {
+    // 1. Ensure user is on BSC first
     await forceBSC();
 
+    // 2. Request account access if not already connected
+    // This ensures the wallet is "awake" and ready for the watchAsset request
+    await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+    // 3. Trigger the add token popup
     const wasAdded = await window.ethereum.request({
       method: "wallet_watchAsset",
       params: {
@@ -90,10 +95,13 @@ export async function addTokenToWallet() {
     });
 
     if (wasAdded) {
-      alert("AIGODS COIN successfully added to your wallet!");
+      console.log("AIGODS token was added to wallet");
     }
   } catch (err) {
     console.error("Add token error:", err);
-    alert("Error adding token: " + (err.message || "Unknown error"));
+    // Only alert if it's not a user rejection
+    if (err.code !== 4001) {
+      alert("Error adding token: " + (err.message || "Unknown error"));
+    }
   }
 }
