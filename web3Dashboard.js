@@ -37,11 +37,9 @@ export async function sellTokens(tokenAmount) {
 
 export async function getUserReferrals(address) {
   try {
-    // Note: getReferralCount is not in the current ABI, returning 0
-    // const { contract } = await getWeb3State();
-    // const count = await contract.getReferralCount(address);
-    // return Number(count);
-    return 0;
+    const { contract } = await getWeb3State();
+    const count = await contract.getReferralCount(address);
+    return Number(count);
   } catch (err) {
     console.error("Error fetching referrals:", err);
     return 0;

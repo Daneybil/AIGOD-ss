@@ -59,6 +59,24 @@ export async function forceBSC() {
   }
 }
 
+export async function getBNBPrice() {
+  try {
+    const response = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT");
+    const data = await response.json();
+    return parseFloat(data.price);
+  } catch (e) {
+    console.warn("Binance price fetch failed, trying fallback:", e.message);
+    try {
+      const response = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd");
+      const data = await response.json();
+      return data.binancecoin.usd;
+    } catch (e2) {
+      console.warn("Coingecko price fetch failed:", e2.message);
+      return 600; // Final fallback
+    }
+  }
+}
+
 export async function getWeb3State() {
   if (provider && signer && contract) {
     try {
@@ -101,10 +119,23 @@ export async function getWeb3State() {
     throw err;
   }
   
+  // Add a small delay to allow the provider to stabilize
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
   signer = await provider.getSigner();
   
-  // 4. Verify network again after account access
-  const network = await provider.getNetwork();
+  // 4. Verify network again after account access with retry
+  let network;
+  for (let i = 0; i < 3; i++) {
+    try {
+      network = await provider.getNetwork();
+      break;
+    } catch (e) {
+      if (i === 2) throw e;
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
   if (Number(network.chainId) !== 56) {
     console.warn("Provider is not on BSC (Chain ID 56). Current Chain ID:", network.chainId);
     // Try one last time to switch if network is wrong
@@ -170,10 +201,9 @@ export async function updateBalances() {
     // Fetch referrals from contract if function exists
     let referrals = 0;
     try {
-      // Note: getReferralCount is not in the current ABI, using fallback or 0
-      // referrals = Number(await contract.getReferralCount(address));
+      referrals = Number(await contract.getReferralCount(address));
     } catch (e) {
-      // console.warn("getReferralCount not found in ABI");
+      console.warn("getReferralCount failed:", e.message);
     }
 
     // Sync with Firebase
@@ -206,12 +236,26 @@ export async function updateBalances() {
 }
 
 export async function loadLeaderboard() {
-  // Note: getTopReferrers is not in the current ABI, returning empty list
-  console.warn("getTopReferrers not found in ABI, leaderboard disabled");
-  if (window.renderLeaderboard) {
-    window.renderLeaderboard([]);
+  try {
+    const { contract } = await getWeb3State();
+    const [addresses, counts] = await contract.getTopReferrers();
+    
+    const leaderboard = addresses.map((addr, i) => ({
+      address: addr,
+      referrals: Number(counts[i])
+    })).filter(item => item.address !== zeroAddress);
+
+    if (window.renderLeaderboard) {
+      window.renderLeaderboard(leaderboard);
+    }
+    return leaderboard;
+  } catch (e) {
+    console.error("loadLeaderboard failed:", e.message);
+    if (window.renderLeaderboard) {
+      window.renderLeaderboard([]);
+    }
+    return [];
   }
-  return [];
 }
 
 export async function buyPresale(amountBNB) {
@@ -219,14 +263,14 @@ export async function buyPresale(amountBNB) {
     const { contract } = await getWeb3State();
     const referralAddress = localStorage.getItem("aigods_referrer") || zeroAddress;
     
-    console.log("Initiating buyPresale with amount:", amountBNB, "and referral:", referralAddress);
+    console.log("Initiating buyPreSale with amount:", amountBNB, "and referral:", referralAddress);
     
     const value = ethers.parseEther(amountBNB.toString());
     
     // Estimate gas for better reliability
     let gasLimit;
     try {
-      gasLimit = await contract.buyTokensWithReferral.estimateGas(referralAddress, { value });
+      gasLimit = await contract.buyPreSale.estimateGas(referralAddress, { value });
       // Add 20% buffer
       gasLimit = (gasLimit * 120n) / 100n;
     } catch (e) {
@@ -234,7 +278,7 @@ export async function buyPresale(amountBNB) {
       gasLimit = 300000n;
     }
 
-    const tx = await contract.buyTokensWithReferral(referralAddress, {
+    const tx = await contract.buyPreSale(referralAddress, {
       value,
       gasLimit
     });
@@ -289,7 +333,7 @@ export async function sellTokens(amountTokens) {
     
     console.log("Initiating sellTokens with amount:", amountTokens);
     
-    const routerAddress = await contract.QUICKSWAP_ROUTER();
+    const routerAddress = await contract.PANCAKE_ROUTER();
     if (!routerAddress || routerAddress === zeroAddress) {
       throw new Error("Router address not found in contract.");
     }

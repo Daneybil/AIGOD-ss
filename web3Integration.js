@@ -5,7 +5,8 @@ import {
   loadLeaderboard as serviceLoadLeaderboard, 
   buyPresale as serviceBuyPresale, 
   claimAirdrop as serviceClaimAirdrop,
-  sellTokens as serviceSellTokens
+  sellTokens as serviceSellTokens,
+  getBNBPrice as serviceGetBNBPrice
 } from "./web3Service.js";
 
 export async function connectWallet() {
@@ -72,6 +73,10 @@ export async function sellTokens(amountTokens) {
 
 export async function loadLeaderboard() {
   return serviceLoadLeaderboard();
+}
+
+export async function getBNBPrice() {
+  return serviceGetBNBPrice();
 }
 
 // Periodic refresh every 30 seconds

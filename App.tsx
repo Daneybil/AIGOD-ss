@@ -45,7 +45,8 @@ import {
   buyPresale as web3Buy, 
   sellTokens as web3Sell,
   loadLeaderboard as web3LoadLeaderboard,
-  captureReferralFromURL 
+  captureReferralFromURL,
+  getBNBPrice as web3GetBNBPrice
 } from "./web3Integration.js";
 
 // Web3 Dashboard Module Imports
@@ -194,6 +195,22 @@ const App: React.FC = () => {
   const [firebaseError, setFirebaseError] = useState<string | null>(null);
   const [activeReferrer, setActiveReferrer] = useState<string>(localStorage.getItem("aigods_referrer") || ethers.ZeroAddress);
   const [currentUserReferrals, setCurrentUserReferrals] = useState<number>(0);
+  const [bnbPrice, setBnbPrice] = useState<number>(600);
+
+  // Fetch BNB Price
+  useEffect(() => {
+    const fetchPrice = async () => {
+      try {
+        const price = await web3GetBNBPrice();
+        setBnbPrice(price);
+      } catch (e) {
+        console.warn("Price fetch failed:", e);
+      }
+    };
+    fetchPrice();
+    const interval = setInterval(fetchPrice, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, []);
 
   // Sync with Web3 Service events
   useEffect(() => {
@@ -236,11 +253,11 @@ const App: React.FC = () => {
 
   const currentPrice = calcStage.includes('Stage 1') ? STAGE_1_PRICE : STAGE_2_PRICE;
   
-  const tokenPrices: Record<string, number> = {
-    'BNB': 600,
+  const tokenPrices: Record<string, number> = useMemo(() => ({
+    'BNB': bnbPrice,
     'SOL': 150,
     'USD': 1
-  };
+  }), [bnbPrice]);
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     const target = e.target as HTMLImageElement;
