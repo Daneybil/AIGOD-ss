@@ -18,6 +18,66 @@ export const BSC_RPC_URLS = [
 ];
 
 export const PROXY_CONTRACT_ADDRESS = '0xbb89b668e5816050B20f4E11D2Ce1D498a663aCA';
+export const PRESALE_ROUTER_ADDRESS = '0xc764DD44D6987F619d73FB9371004E312184f6ec';
+
+export const PRESALE_ROUTER_ABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "referrer",
+				"type": "address"
+			}
+		],
+		"name": "buy",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			}
+		],
+		"name": "balanceOf",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "transfer",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+];
 
 export const BG_LOGO_TOP = 'https://storage.googleapis.com/static.antigravity.ai/asb/daneybil2020%40gmail.com/1743075154330.png';
 export const BG_LOGO_CENTER = 'https://storage.googleapis.com/static.antigravity.ai/asb/daneybil2020%40gmail.com/1743075157434.png';
