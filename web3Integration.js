@@ -9,12 +9,27 @@ import {
   getBNBPrice as serviceGetBNBPrice
 } from "./web3Service.js";
 
+let refreshInterval = null;
+
 export async function connectWallet() {
   try {
     const { signer } = await getWeb3State();
     const address = await signer.getAddress();
-    await updateBalances();
-    await serviceLoadLeaderboard();
+    
+    // Batch calls AFTER connection to prevent freezing
+    await Promise.all([
+      updateBalances(),
+      serviceLoadLeaderboard()
+    ]);
+
+    // Start periodic refresh only after connection if not already started
+    if (!refreshInterval) {
+      refreshInterval = setInterval(() => {
+        updateBalances();
+        serviceLoadLeaderboard();
+      }, 30000);
+    }
+
     return address;
   } catch (err) {
     console.error("Connection error:", err.message);
@@ -79,10 +94,7 @@ export async function getBNBPrice() {
   return serviceGetBNBPrice();
 }
 
-// Periodic refresh every 30 seconds
-setInterval(() => {
-  serviceLoadLeaderboard();
-  updateBalances();
-}, 30000);
+// Removed global auto-refresh to reduce initial RPC load
+// It will be started inside connectWallet() after successful connection
 
 captureReferralFromURL();

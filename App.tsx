@@ -14,6 +14,7 @@ import {
   Globe,
   FileText,
   Trophy,
+  Mail,
   CreditCard as CardIcon,
   Crown,
   Sparkles,
@@ -197,6 +198,7 @@ const App: React.FC = () => {
   const [activeReferrer, setActiveReferrer] = useState<string>(localStorage.getItem("aigods_referrer") || ethers.ZeroAddress);
   const [currentUserReferrals, setCurrentUserReferrals] = useState<number>(0);
   const [bnbPrice, setBnbPrice] = useState<number>(600);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Fetch BNB Price
   useEffect(() => {
@@ -379,27 +381,49 @@ const App: React.FC = () => {
   }, []);
 
   const handleClaimAirdrop = async () => {
-    await web3Claim();
+    if (isProcessing) return;
+    if (!taskTwitter || !taskTelegram || !taskYoutube) {
+      alert("PLEASE COMPLETE ALL SOCIAL TASKS BEFORE CLAIMING!");
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      await web3Claim();
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleBuyPresale = async () => {
+    if (isProcessing) return;
     const bnbAmount = buyInput || "0.0";
     if (parseFloat(bnbAmount) <= 0) {
       alert("Please enter a valid amount to buy.");
       return;
     }
-    await web3Buy(bnbAmount);
-    setBuyInput("");
+    setIsProcessing(true);
+    try {
+      await web3Buy(bnbAmount);
+      setBuyInput("");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleSellTokens = async () => {
+    if (isProcessing) return;
     const tokenAmount = sellInput || "0.0";
     if (parseFloat(tokenAmount) <= 0) {
       alert("Please enter a valid amount to sell.");
       return;
     }
-    await web3Sell(tokenAmount);
-    setSellInput("");
+    setIsProcessing(true);
+    try {
+      await web3Sell(tokenAmount);
+      setSellInput("");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const connectWalletHandler = async () => {
@@ -407,6 +431,7 @@ const App: React.FC = () => {
   };
 
   const executeConnectWallet = async () => {
+    if (isConnecting) return;
     setIsWarningModalOpen(false);
     setIsConnecting(true);
     try {
@@ -425,20 +450,42 @@ const App: React.FC = () => {
   };
 
   const handleDashboardClaim = async () => {
-    await dashboardClaim();
+    if (isProcessing) return;
+    if (!taskTwitter || !taskTelegram || !taskYoutube) {
+      alert("PLEASE COMPLETE ALL SOCIAL TASKS BEFORE CLAIMING!");
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      await dashboardClaim();
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleDashboardBuy = async () => {
+    if (isProcessing) return;
     const bnbAmount = buyInput || "0.0";
-    await dashboardBuy(activeReferrer, bnbAmount);
-    // After successful purchase, prompt to add token
-    if (parseFloat(bnbAmount) > 0) {
-      await dashboardAddToken();
+    setIsProcessing(true);
+    try {
+      await dashboardBuy(activeReferrer, bnbAmount);
+      // After successful purchase, prompt to add token
+      if (parseFloat(bnbAmount) > 0) {
+        await dashboardAddToken();
+      }
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleAddTokenToWallet = async () => {
-    await dashboardAddToken();
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
+      await dashboardAddToken();
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   useEffect(() => {
@@ -464,7 +511,6 @@ const App: React.FC = () => {
     };
 
     captureReferralFromURL();
-    loadLeaderboard();
   }, []);
 
   useEffect(() => {
@@ -644,6 +690,54 @@ const App: React.FC = () => {
            ></iframe>
         </div>
 
+        {/* OFFICIAL CONTRACT DISPLAY - REPOSITIONED UNDER YOUTUBE */}
+        <div className="w-full max-w-2xl relative group mb-16 md:mb-24">
+          <div className="absolute inset-0 bg-gradient-to-r from-[#ff00ff]/20 via-transparent to-[#00ffff]/20 blur-3xl opacity-30 group-hover:opacity-60 transition-opacity"></div>
+          <div className="relative bg-gradient-to-b from-[#0a0a1a] to-[#020205] border border-cyan-500/30 rounded-[2rem] p-8 md:p-12 text-center shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden">
+            {/* Verified Badge */}
+            <div className="absolute top-4 right-4 flex items-center gap-1.5 bg-green-500/10 border border-green-500/20 px-3 py-1 rounded-full">
+              <ShieldCheck size={12} className="text-green-500" />
+              <span className="text-[8px] font-black text-green-500 uppercase tracking-widest">VERIFIED & SECURE</span>
+            </div>
+
+            <h3 className="text-white font-[1000] text-sm md:text-xl uppercase tracking-[0.4em] mb-8 italic">
+              AI GODS OFFICIAL CONTRACT ADDRESS
+            </h3>
+
+            <div className="flex flex-col items-center gap-6">
+              <div className="flex items-center gap-4 bg-black/80 px-4 md:px-8 py-5 rounded-[1.5rem] border border-white/10 w-full hover:border-[#ff00ff]/40 transition-all shadow-inner group/addr">
+                <span className="text-[10px] md:text-xl font-black text-[#00ffff] font-mono break-all cursor-text select-all flex-1 tracking-wider">
+                  0xbb89b668e5816050B20f4E11D2Ce1D498a663aCA
+                </span>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText("0xbb89b668e5816050B20f4E11D2Ce1D498a663aCA");
+                    alert("Contract Address Copied to Clipboard!");
+                  }}
+                  className="p-3 bg-white text-black rounded-xl hover:scale-110 active:scale-95 transition-all shadow-lg shrink-0"
+                  title="Copy to clipboard"
+                >
+                  <Copy size={20} />
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-4">
+                <a 
+                  href="https://bscscan.com/token/0xbb89b668e5816050b20f4e11d2ce1d498a663aca" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-3 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 px-8 py-3.5 rounded-full text-[10px] md:text-xs font-[900] uppercase tracking-widest hover:bg-cyan-500 hover:text-black transition-all shadow-[0_0_30px_rgba(0,255,255,0.1)]"
+                >
+                  View on BSCScan <ExternalLink size={14} />
+                </a>
+              </div>
+            </div>
+
+            {/* Subtle glow effect at the bottom */}
+            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#00ffff]/50 to-transparent"></div>
+          </div>
+        </div>
+
         <h2 className="text-[10vw] md:text-8xl font-black text-[#00ffff] uppercase tracking-tighter mb-8 md:mb-12 italic text-center">
           PRESALE DETAILS
         </h2>
@@ -780,122 +874,116 @@ const App: React.FC = () => {
            </button>
         </div>
 
-        <div id="buy-input-section" className="w-full max-w-2xl flex flex-col gap-6 mb-10 px-2">
-           <div className="flex flex-col md:flex-row gap-3 md:gap-4">
-             <input 
-               type="text"
-               placeholder="Amount (BNB)"
-               className="flex-1 bg-black/30 border border-gray-800 rounded-2xl md:rounded-[1.5rem] p-5 md:p-6 text-white font-bold outline-none"
-               value={buyInput}
-               onChange={(e) => setBuyInput(e.target.value)}
-             />
+        <div id="buy-input-section" className="w-full max-w-4xl flex flex-col gap-8 mb-20 px-2">
+           <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-stretch">
+             <div className="flex-[1.5] relative group">
+               <input 
+                 type="text"
+                 placeholder="Enter Amount (BNB)"
+                 className="w-full h-full bg-black/50 border-2 border-gray-800/80 rounded-[2rem] md:rounded-[2.5rem] p-8 md:p-10 text-white font-[950] text-2xl md:text-4xl outline-none ring-1 ring-white/10 focus:ring-cyan-500/60 focus:border-cyan-500/40 transition-all shadow-[inset_0_2px_20px_rgba(0,0,0,0.5)] text-center md:text-left backdrop-blur-sm min-h-[100px] md:min-h-[120px]"
+                 value={buyInput}
+                 onChange={(e) => setBuyInput(e.target.value)}
+               />
+               <div className="absolute right-8 top-1/2 -translate-y-1/2 hidden md:block opacity-20 group-focus-within:opacity-50 transition-opacity">
+                 <Zap className="text-cyan-400" size={32} />
+               </div>
+             </div>
              <button 
                id="buyButton"
                onClick={handleBuyPresale}
-               className="px-10 md:px-16 py-6 bg-gradient-to-r from-[#ff00ff] to-[#8b5cf6] rounded-2xl md:rounded-[2.5rem] text-black font-black text-xl md:text-2xl uppercase tracking-tighter shadow-[0_0_40px_rgba(255,0,255,0.4)] hover:scale-[1.05] transition-all animate-dim-intense-blue"
+               disabled={isProcessing}
+               className="flex-1 px-10 md:px-24 py-9 md:py-11 bg-gradient-to-br from-[#ff00ff] via-[#d946ef] to-[#8b5cf6] rounded-[2rem] md:rounded-[2.5rem] text-black font-[1000] text-3xl md:text-4xl uppercase tracking-tighter shadow-[0_0_70px_rgba(217,70,239,0.5)] hover:shadow-[0_0_100px_rgba(217,70,239,0.8)] hover:scale-[1.04] active:scale-[0.96] transition-all duration-500 animate-dim-light-blue disabled:opacity-50 disabled:scale-100 disabled:animate-none flex flex-col items-center justify-center leading-none min-h-[100px] md:min-h-[120px]"
              >
-               BUY AIGODS
-             </button>
-           </div>
-
-           <div className="flex flex-col md:flex-row gap-3 md:gap-4">
-             <input 
-               type="text"
-               placeholder="Amount (AIGODS)"
-               className="flex-1 bg-black/30 border border-gray-800 rounded-2xl md:rounded-[1.5rem] p-5 md:p-6 text-white font-bold outline-none"
-               value={sellInput}
-               onChange={(e) => setSellInput(e.target.value)}
-             />
-             <button 
-               id="sellButton"
-               onClick={handleSellTokens}
-               className="px-10 md:px-16 py-6 bg-gradient-to-r from-[#8b5cf6] to-[#00ffff] rounded-2xl md:rounded-[2.5rem] text-black font-black text-xl md:text-2xl uppercase tracking-tighter shadow-[0_0_40px_rgba(0,255,255,0.4)] hover:scale-[1.05] transition-all animate-dim-intense-blue"
-             >
-               SELL AIGODS
+               <span className="mb-1">{isProcessing ? 'PROCESSING...' : 'BUY AIGODS'}</span>
+               <span className="text-xl md:text-2xl opacity-80 tracking-[0.2em]">{!isProcessing && 'COIN NOW'}</span>
              </button>
            </div>
         </div>
 
-        {/* STYLED WEB3 DASHBOARD INTEGRATION SECTION */}
-        <div className="w-full max-w-2xl bg-[#0a0a1a]/60 border border-cyan-500/20 rounded-[2.5rem] p-8 md:p-12 mb-20 text-center shadow-[0_0_50px_rgba(0,0,0,1)] mx-auto relative z-10">
-          <h3 className="text-[#00ffff] font-black text-2xl md:text-[2.75rem] uppercase tracking-tighter mb-10 leading-[0.9]">
-            WEB3 DASHBOARD<br/>INTEGRATION
-          </h3>
-          <div className="flex flex-col gap-5">
-            <button 
-              onClick={handleDashboardClaim}
-              className="w-full py-5 md:py-7 bg-[#00badb] text-black font-black rounded-2xl md:rounded-[2rem] hover:scale-[1.02] transition-all uppercase text-sm md:text-2xl tracking-tighter shadow-lg"
-            >
-              CLAIM AIRDROP (DASHBOARD)
-            </button>
-            <button 
-              onClick={handleAddTokenToWallet}
-              className="w-full py-5 md:py-7 bg-[#f3ba2f] text-black font-black rounded-2xl md:rounded-[2rem] hover:scale-[1.02] transition-all uppercase text-sm md:text-2xl tracking-tighter shadow-lg"
-            >
-              ADD AIGODS COIN TO WALLET
-            </button>
-            
-            <div className="mt-6 p-6 md:p-10 bg-black/20 rounded-2xl md:rounded-[2rem] border border-gray-800/40 flex items-center justify-between shadow-inner">
-              <span className="text-gray-400 text-xs md:text-xl uppercase font-black tracking-tighter">MY REFERRALS:</span>
-              <span id="myReferrals" className="text-[#00ffff] text-4xl md:text-6xl font-black italic">{userReferrals}</span>
-            </div>
-            
-            <div className="p-6 md:p-10 bg-black/20 rounded-2xl md:rounded-[2rem] border border-gray-800/40 flex items-center justify-between shadow-inner">
-              <span className="text-gray-400 text-xs md:text-xl uppercase font-black tracking-tighter">TOKEN BALANCE:</span>
+        {/* STYLED WEB3 DASHBOARD INTEGRATION SECTION - UNIFIED */}
+        <div className="w-full max-w-2xl bg-[#0a0a1a]/80 backdrop-blur-xl border border-cyan-500/30 rounded-[2.5rem] md:rounded-[3.5rem] p-8 md:p-14 mb-20 text-center shadow-[0_0_80px_rgba(0,0,0,0.8)] mx-auto relative z-10 space-y-10">
+          <div className="space-y-4">
+            <h3 className="text-[#00ffff] font-black text-3xl md:text-[3.5rem] uppercase tracking-tighter leading-[0.85]">
+              WEB3 DASHBOARD<br/>INTEGRATION
+            </h3>
+            <p className="text-[10px] md:text-xs text-cyan-400/60 font-black uppercase tracking-[0.4em]">AUTHENTIC INTELLIGENCE ECOSYSTEM</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-6 md:p-8 bg-black/40 rounded-3xl border border-white/5 flex flex-col items-center justify-center gap-2 shadow-inner group hover:border-cyan-500/30 transition-all">
+              <span className="text-gray-500 text-[10px] md:text-sm uppercase font-black tracking-widest">TOKEN BALANCE</span>
               <div className="flex items-baseline gap-2">
-                <span id="userTokenBalance" className="text-[#f3ba2f] text-2xl md:text-4xl font-black italic">{tokenBalance}</span>
-                <span className="text-gray-500 text-xs md:text-sm font-black italic">AIGODS</span>
+                <span className="text-[#f3ba2f] text-3xl md:text-5xl font-black italic tabular-nums">{tokenBalance}</span>
+                <span className="text-gray-600 text-[10px] font-black italic">AIGODS</span>
               </div>
             </div>
+
+            <div className="p-6 md:p-8 bg-black/40 rounded-3xl border border-white/5 flex flex-col items-center justify-center gap-2 shadow-inner group hover:border-cyan-500/30 transition-all">
+              <span className="text-gray-500 text-[10px] md:text-sm uppercase font-black tracking-widest">MY REFERRALS</span>
+              <span className="text-[#00ffff] text-3xl md:text-5xl font-black italic tabular-nums">{userReferrals}</span>
+            </div>
+          </div>
+
+          <button 
+            onClick={handleAddTokenToWallet}
+            disabled={isProcessing}
+            className="w-full py-5 md:py-6 bg-[#f3ba2f] text-black font-black rounded-2xl md:rounded-3xl hover:scale-[1.02] active:scale-[0.98] transition-all uppercase text-sm md:text-xl tracking-tighter shadow-[0_10px_30px_rgba(243,186,47,0.2)] flex items-center justify-center gap-3 group disabled:opacity-50"
+          >
+            <Wallet2 size={24} className="group-hover:rotate-12 transition-transform" />
+            {isProcessing ? 'PROCESSING...' : 'ADD AIGODS COIN TO WALLET'}
+          </button>
+
+          <div className="pt-6 border-t border-white/5">
+            <h4 className="text-white font-black text-xs md:text-lg uppercase tracking-widest mb-8">COMPLETE TASKS BEFORE CLAIMING</h4>
+            <div className="flex flex-col gap-4 max-w-sm mx-auto text-left">
+                {[
+                  { id: 't1', label: 'FOLLOW TWITTER', state: taskTwitter, set: setTaskTwitter },
+                  { id: 't2', label: 'JOIN TELEGRAM (CHANNELS & CHAT)', state: taskTelegram, set: setTaskTelegram },
+                  { id: 't3', label: 'SUBSCRIBE YOUTUBE', state: taskYoutube, set: setTaskYoutube }
+                ].map(task => (
+                  <label key={task.id} className="flex items-center gap-4 cursor-pointer group p-3 rounded-xl hover:bg-white/5 transition-all">
+                    <div className={`w-7 h-7 border-2 border-gray-700 rounded-lg flex items-center justify-center transition-all ${task.state ? 'bg-cyan-500 border-cyan-500 scale-110 shadow-[0_0_15px_rgba(0,255,255,0.4)]' : 'bg-black'}`}>
+                      {task.state && <Sparkles size={16} className="text-black" />}
+                    </div>
+                    <input 
+                      type="checkbox" 
+                      className="hidden" 
+                      checked={task.state} 
+                      onChange={(e) => task.set(e.target.checked)} 
+                    />
+                    <span className={`text-[11px] md:text-xs font-black transition-all uppercase tracking-widest ${task.state ? 'text-white' : 'text-gray-500 group-hover:text-gray-300'}`}>{task.label}</span>
+                  </label>
+                ))}
+            </div>
+          </div>
+
+          <div className="pt-2">
+            <button 
+              id="claimAirdropButton"
+              onClick={handleClaimAirdrop}
+              disabled={isProcessing}
+              className="w-full py-6 md:py-8 rounded-2xl md:rounded-3xl bg-[#16da64] text-black font-[900] text-xl md:text-3xl uppercase tracking-tighter hover:scale-[1.03] active:scale-[0.97] transition-all shadow-[0_20px_50px_rgba(22,218,100,0.3)] leading-none disabled:opacity-50"
+            >
+              {isProcessing ? 'CLAIMING...' : 'CLAIM 100 AIGODS FREE'}
+            </button>
+          </div>
+
+          <div className="pt-4 px-2">
+            <button 
+              id="faq-button"
+              onClick={() => setIsFaqOpen(true)}
+              className="w-full py-8 md:py-10 bg-gradient-to-r from-cyan-600/20 via-blue-500/20 to-cyan-600/20 border-2 border-cyan-400/40 text-cyan-400 font-[950] rounded-[2rem] md:rounded-[2.5rem] uppercase tracking-[0.3em] text-lg md:text-2xl shadow-[0_0_50px_rgba(0,255,255,0.2)] hover:shadow-[0_0_80px_rgba(0,255,255,0.5)] transition-all transform hover:scale-[1.02] animate-dim-light-blue flex flex-col items-center justify-center gap-2"
+            >
+              <span className="leading-none">EXPLORE FAQS & DETAILS</span>
+              <span className="text-[10px] md:text-xs opacity-60 tracking-widest font-black">GET THE FULL REVOLUTIONARY INTEL</span>
+            </button>
           </div>
         </div>
 
-        <div className="w-full max-w-2xl bg-[#080812]/40 backdrop-blur-md border border-gray-800 rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-12 text-center shadow-2xl mb-8 md:mb-10">
-           <h3 className="text-white font-black text-base md:text-xl uppercase tracking-widest mb-8 md:mb-10">COMPLETE TASKS BEFORE CLAIMING</h3>
-           <div className="flex flex-col gap-5 md:gap-6 max-sm mx-auto text-left">
-              {[
-                { id: 't1', label: 'FOLLOW TWITTER', state: taskTwitter, set: setTaskTwitter },
-                { id: 't2', label: 'JOIN TELEGRAM (CHANNELS & CHAT)', state: taskTelegram, set: setTaskTelegram },
-                { id: 't3', label: 'SUBSCRIBE YOUTUBE', state: taskYoutube, set: setTaskYoutube }
-              ].map(task => (
-                <label key={task.id} className="flex items-center gap-4 md:gap-5 cursor-pointer group">
-                  <div className={`w-6 h-6 border-2 border-gray-700 rounded flex items-center justify-center transition-all ${task.state ? 'bg-cyan-500 border-cyan-500' : 'bg-black'}`}>
-                    {task.state && <Sparkles size={14} className="text-black" />}
-                  </div>
-                  <input 
-                    type="checkbox" 
-                    className="hidden" 
-                    checked={task.state} 
-                    onChange={(e) => task.set(e.target.checked)} 
-                  />
-                  <span className="text-[10px] md:text-sm font-black text-gray-500 group-hover:text-white transition-all uppercase tracking-[0.2em]">{task.label}</span>
-                </label>
-              ))}
-           </div>
-        </div>
 
-        <div className="w-full max-w-2xl mb-16 px-2">
-          <button 
-            id="claimAirdropButton"
-            onClick={handleClaimAirdrop}
-            className="w-full py-6 md:py-10 rounded-3xl md:rounded-[2rem] bg-[#16da64] text-black font-black text-xl sm:text-3xl md:text-5xl uppercase tracking-tighter hover:scale-[1.02] transition-all shadow-[0_0_50px_rgba(22,218,100,0.6)] leading-none"
-          >
-            CLAIM 100 AIGODS FREE
-          </button>
-        </div>
 
-        {/* FAQ BUTTON */}
-        <div className="mt-10 mb-20 flex justify-center">
-          <button 
-            id="faq-button"
-            onClick={() => setIsFaqOpen(true)}
-            className="faq-btn px-16 py-7 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-black rounded-full uppercase tracking-[0.3em] text-sm md:text-base shadow-[0_0_40px_rgba(0,255,255,0.4)] hover:shadow-[0_0_60px_rgba(0,255,255,0.7)] transition-all transform hover:scale-105 animate-dim-light-blue"
-          >
-            Explore more details and FAQs
-          </button>
-        </div>
 
-        <div className="w-full max-w-4xl bg-[#080812]/60 border border-gray-800/60 rounded-[3rem] p-6 md:p-16 mb-20 md:mb-24 relative overflow-hidden text-center shadow-[0_0_100px_rgba(0,0,0,0.9)]">
+        <div id="referral-section" className="w-full max-w-4xl bg-[#080812]/60 border border-gray-800/60 rounded-[3rem] p-6 md:p-16 mb-20 md:mb-24 relative overflow-hidden text-center shadow-[0_0_100px_rgba(0,0,0,0.9)]">
            <h3 className="text-3xl sm:text-5xl md:text-[5.5rem] font-black italic tracking-tighter uppercase leading-none mb-8 md:mb-10">
              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00ffff] to-[#ff00ff]">BECOME AN AIGODS</span> <br/>
              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00ffff] to-[#ff00ff]">ARCHITECT</span>
@@ -983,48 +1071,104 @@ const App: React.FC = () => {
         <LogoGrid />
         
         <div className="w-full max-w-4xl px-4 mt-20 md:mt-24">
-          <div className="bg-[#050508]/60 border border-green-500/20 rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 text-center relative overflow-hidden shadow-2xl">
-             <div className="bg-green-500/10 w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 md:mb-8 border border-green-500/30">
-                <ShieldCheck size={32} className="text-green-500 md:w-[40px] md:h-[40px]" />
-             </div>
-             <h4 className="text-xl md:text-5xl font-black text-white uppercase tracking-tighter mb-4 md:mb-6 italic">AUDITED BY CERTIK</h4>
-             <p className="text-[9px] md:text-xs text-gray-400 font-medium leading-relaxed max-w-xl mx-auto mb-8 md:mb-10 uppercase tracking-widest">
-               The AIGODS smart contract has successfully passed comprehensive security audits by CertiK, ensuring maximum safety for all investors.
-             </p>
-             <button className="bg-transparent border border-green-500/30 text-green-500 px-8 md:px-14 py-4 rounded-full text-[9px] md:text-xs font-black uppercase tracking-[0.3em] hover:bg-green-500 hover:text-black transition-all flex items-center gap-2 md:gap-3 mx-auto">
-               VIEW AUDIT REPORT <ExternalLink size={14} className="md:w-4 md:h-4" />
-             </button>
-          </div>
+          <a 
+            href="https://bscscan.com/token/0xbb89b668e5816050b20f4e11d2ce1d498a663aca#code" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="block group"
+          >
+            <div className="bg-[#050508]/60 border-2 border-green-500/40 rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 text-center relative overflow-hidden shadow-2xl transition-all hover:bg-green-500/10 hover:border-green-500/60">
+               <div className="bg-green-500/10 w-16 h-16 md:w-20 md:h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 md:mb-8 border border-green-500/30 group-hover:scale-110 transition-transform">
+                  <ShieldCheck size={32} className="text-green-500 md:w-[40px] md:h-[40px]" />
+               </div>
+               <h4 className="text-xl md:text-5xl font-black text-white uppercase tracking-tighter mb-4 md:mb-6 italic">✅ SMART CONTRACT AUDITED & VERIFIED ON BSCSCAN</h4>
+               <p className="text-[9px] md:text-xs text-gray-400 font-medium leading-relaxed max-w-xl mx-auto mb-8 md:mb-10 uppercase tracking-widest">
+                 The AIGODS smart contract has successfully passed comprehensive security audits and is fully verified on BSCScan, ensuring maximum safety for all investors.
+               </p>
+               <div className="inline-flex items-center bg-green-500 text-black px-8 md:px-14 py-4 rounded-full text-[9px] md:text-xs font-black uppercase tracking-[0.3em] hover:bg-green-400 transition-all gap-2 md:gap-3 mx-auto">
+                 VIEW AUDIT ON BSCSCAN <ExternalLink size={14} className="md:w-4 md:h-4" />
+               </div>
+            </div>
+          </a>
         </div>
 
         <div className="w-full max-w-5xl px-4 grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-20 mt-20 md:mt-32 text-center md:text-left">
            <div className="space-y-6 md:space-y-8">
               <h5 className="text-cyan-400 text-xl md:text-3xl font-black italic uppercase tracking-tighter">AIGODS OFFICIAL</h5>
-              <div className="flex items-center justify-center md:justify-start gap-6 md:gap-12">
-                 <a href="https://x.com/AIGODSCOIN" target="_blank" rel="noopener noreferrer"><Twitter size={28} className="text-cyan-400 hover:scale-110 transition-all cursor-pointer" /></a>
-                 <a href="https://t.me/AIGODSCOINOFFICIAL" target="_blank" rel="noopener noreferrer"><Send size={28} className="text-cyan-400 hover:scale-110 transition-all cursor-pointer" /></a>
-                 <a href="https://t.me/AIGODSCOIN" target="_blank" rel="noopener noreferrer"><MessageCircle size={28} className="text-cyan-400 hover:scale-110 transition-all cursor-pointer" /></a>
-                 <a href="https://www.youtube.com/@AIGODSCOINOFFICIAL" target="_blank" rel="noopener noreferrer"><Youtube size={28} className="text-cyan-400 hover:scale-110 transition-all cursor-pointer" /></a>
+              <div className="flex items-center justify-center md:justify-start gap-4 md:gap-8 flex-wrap">
+                 <a href="https://bscscan.com/token/0xbb89b668e5816050b20f4e11d2ce1d498a663aca#code" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-all"><Activity size={28} className="text-cyan-400" /></a>
+                 <a href="https://t.me/aigodscoinofficialll" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-all"><Send size={28} className="text-cyan-400" /></a>
+                 <a href="https://t.me/AIGODSCOINOFFICIALLLL" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-all"><MessageCircle size={28} className="text-cyan-400" /></a>
+                 <a href="https://x.com/AIGODSCOIN" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-all"><Twitter size={28} className="text-cyan-400" /></a>
+                 <a href="https://coinmarketcap.com/community/profile/AIGODS" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-all flex items-center justify-center w-[28px] h-[28px] bg-cyan-400 rounded-lg text-black font-black text-[8px]">CMC</a>
+                 <a href="https://youtube.com/@aigodscoinofficial?si=ETieCO8sd5qB3JYk" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-all"><Youtube size={28} className="text-cyan-400" /></a>
               </div>
               <p className="text-[8px] md:text-[10px] font-black text-gray-700 uppercase tracking-widest">JOIN THE FASTEST GROWING DECENTRALIZED AI COMMUNITY.</p>
            </div>
            <div className="space-y-6 md:space-y-8">
               <h5 className="text-[#ff00ff] text-xl md:text-3xl font-black italic uppercase tracking-tighter">INFLUENCER HUB</h5>
               <div className="flex items-center justify-center md:justify-start gap-6 md:gap-12">
-                 <a href="https://x.com/AIGODSCOIN" target="_blank" rel="noopener noreferrer"><Twitter size={28} className="text-[#ff00ff] hover:scale-110 transition-all cursor-pointer" /></a>
-                 <a href="https://x.com/AIGODSCOIN" target="_blank" rel="noopener noreferrer"><span className="text-white hover:scale-110 transition-all font-black text-2xl md:text-3xl cursor-pointer">X</span></a>
-                 <a href="https://aigodscoin.com" target="_blank" rel="noopener noreferrer"><Globe size={28} className="text-white hover:scale-110 transition-all cursor-pointer" /></a>
+                 <a href="https://x.com/elonmusk" target="_blank" rel="noopener noreferrer" className="group"><Twitter size={28} className="text-[#ff00ff] group-hover:scale-110 transition-all cursor-pointer" /></a>
+                 <a href="https://x.com/BlackRock" target="_blank" rel="noopener noreferrer" className="group"><span className="text-white group-hover:scale-110 transition-all font-black text-2xl md:text-3xl cursor-pointer">X</span></a>
+                 <a href="https://www.microsoft.com/en-ng" target="_blank" rel="noopener noreferrer" className="group"><Globe size={28} className="text-white group-hover:scale-110 transition-all cursor-pointer" /></a>
               </div>
               <p className="text-[8px] md:text-[10px] font-black text-gray-700 uppercase tracking-widest">BRIDGING THE GAP BETWEEN TITANS AND THE FUTURE.</p>
            </div>
         </div>
 
         {/* PARTICIPATION NOTICE MOVED UNDER SOCIAL MEDIA HANDLES */}
-        <div className="w-full max-w-4xl px-4 mt-12 mb-8 bg-yellow-500/10 border-2 border-yellow-500/30 rounded-3xl p-8 text-center shadow-[0_0_50px_rgba(234,179,8,0.2)]">
-          <p className="text-yellow-400 text-lg md:text-2xl font-black uppercase tracking-[0.15em] leading-tight">
+        <div 
+          onClick={() => {
+            const element = document.getElementById('referral-section');
+            if (element) element.scrollIntoView({ behavior: 'smooth' });
+          }}
+          className="w-full max-w-4xl px-4 mt-12 mb-8 bg-yellow-500/10 border-2 border-yellow-500/30 rounded-3xl p-8 text-center shadow-[0_0_50px_rgba(234,179,8,0.2)] cursor-pointer hover:bg-yellow-500/20 transition-all group"
+        >
+          <p className="text-yellow-400 text-lg md:text-2xl font-black uppercase tracking-[0.15em] leading-tight group-hover:scale-[1.02] transition-transform">
             Even if you don't have money, you can still participate. <br className="hidden md:block" />
             Use the <span className="text-white underline decoration-yellow-500 underline-offset-4">referral program</span> to earn <span className="text-white text-3xl md:text-5xl">20%</span> commission!
           </p>
+        </div>
+
+        {/* OFFICIAL EMAIL SUPPORT SECTION - REPOSITIONED */}
+        <div className="w-full max-w-4xl px-4 mt-4 space-y-6 bg-black/40 backdrop-blur-xl border border-white/5 rounded-[2.5rem] p-8 md:p-12 shadow-2xl mb-12">
+          <div className="text-left space-y-4">
+            <h5 className="text-white font-black text-lg md:text-2xl uppercase tracking-tighter flex items-center gap-3 italic">
+              <Mail size={20} className="text-[#ff00ff]" /> 📩 Contact & Support
+            </h5>
+            
+            <div className="space-y-4">
+              <p className="text-gray-400 text-[10px] md:text-xs font-black uppercase tracking-[0.2em]">For assistance with transactions, purchases, or airdrops:</p>
+              <div className="flex items-center gap-4 bg-[#ff00ff]/5 border border-[#ff00ff]/20 p-4 md:p-6 rounded-2xl group hover:bg-[#ff00ff]/10 transition-all">
+                <Mail size={18} className="text-[#ff00ff]" />
+                <a href="mailto:support@aigodscoinofficial.shop" className="text-[#ff00ff] font-black text-xs md:text-lg break-all hover:underline underline-offset-4">
+                  support@aigodscoinofficial.shop
+                </a>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-2">
+              <p className="text-gray-400 text-[10px] md:text-xs font-black uppercase tracking-[0.2em]">For partnerships, marketing, or inquiries:</p>
+              <div className="flex items-center gap-4 bg-cyan-500/5 border border-cyan-500/20 p-4 md:p-6 rounded-2xl group hover:bg-cyan-500/10 transition-all">
+                <Mail size={18} className="text-cyan-400" />
+                <a href="mailto:info@aigodscoinofficial.shop" className="text-cyan-400 font-black text-xs md:text-lg break-all hover:underline underline-offset-4">
+                  info@aigodscoinofficial.shop
+                </a>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-2">
+              <p className="text-gray-400 text-[10px] md:text-xs font-black uppercase tracking-[0.2em]">For official communication:</p>
+              <div className="flex items-center gap-4 bg-green-500/5 border border-green-500/20 p-4 md:p-6 rounded-2xl group hover:bg-green-500/10 transition-all">
+                <Mail size={18} className="text-green-500" />
+                <a href="mailto:official@aigodscoinofficial.shop" className="text-green-500 font-black text-xs md:text-lg break-all hover:underline underline-offset-4">
+                  official@aigodscoinofficial.shop
+                </a>
+              </div>
+            </div>
+          </div>
+          
+          <p className="text-[9px] text-gray-600 font-black uppercase tracking-[0.3em] text-center pt-4">© AIGODS OFFICIAL COMMUNICATION NETWORK</p>
         </div>
 
         <div className="w-full max-w-6xl px-4 text-center space-y-8 md:space-y-10 pb-20 md:pb-24 border-t border-gray-900 pt-16 md:pt-20 mt-20 md:mt-32">
@@ -1035,7 +1179,10 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      <ChatAssistant logoUrl={AIGODS_LOGO_URL} />
+      <ChatAssistant 
+        logoUrl={AIGODS_LOGO_URL} 
+        onOpenRewards={() => setIsChallengeModalOpen(true)}
+      />
 
       {isChallengeModalOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-0 md:p-4 overflow-hidden">
@@ -1239,14 +1386,18 @@ const App: React.FC = () => {
               <AlertCircle size={40} className="text-yellow-500" />
             </div>
             <h3 className="text-xl md:text-2xl font-black text-white uppercase mb-6 italic tracking-tighter">⚠️ ATTENTION INVESTOR</h3>
-            <div className="text-gray-300 text-sm md:text-base font-bold leading-relaxed mb-10 uppercase tracking-wide space-y-4">
+            <div className="text-gray-300 text-[10px] md:text-sm font-bold leading-relaxed mb-10 uppercase tracking-wide space-y-4">
               <p>You are about to interact with our official presale smart contract.</p>
               <p>
-                Please note: Some wallets, including MetaMask, may display a caution message because this contract is newly deployed and has not yet built a long transaction history yet
+                Please note: Some wallets (especially MetaMask) may display a caution message when interacting with newer smart contracts. This is a common wallet-side notification and does not indicate any problem with our platform.
               </p>
               <p>
-                This is expected behavior and does not indicate any issue. The transaction will only process your purchase securely as intended, and everything will be handled safely.
+                For the best experience, we recommend using Trust Wallet, SafePal, or Coinbase Wallet, which are fully compatible and work smoothly with our system.
               </p>
+              <p>
+                All transactions are processed securely on-chain as intended, and your purchase will be completed safely.
+              </p>
+              <p className="text-cyan-400">Click continue to proceed.</p>
             </div>
             <div className="grid grid-cols-1 gap-4 w-full">
               <button 
@@ -1254,7 +1405,7 @@ const App: React.FC = () => {
                   setIsWarningModalOpen(false);
                   setIsWalletModalOpen(true);
                 }}
-                className="w-full py-5 bg-yellow-500 text-black font-black rounded-2xl uppercase text-sm md:text-base tracking-widest hover:bg-yellow-400 transition-all shadow-lg"
+                className="w-full py-5 bg-yellow-500 text-black font-black rounded-2xl uppercase text-sm md:text-base tracking-widest hover:bg-yellow-400 transition-all shadow-lg shadow-yellow-500/20"
               >
                 CONTINUE
               </button>

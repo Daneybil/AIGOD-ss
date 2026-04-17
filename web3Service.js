@@ -19,26 +19,56 @@ let contract = null;
 let db = null;
 let connectedAddress = null;
 
+// Caching system
+const cache = {
+  balances: { data: null, timestamp: 0 },
+  bnbPrice: { data: null, timestamp: 0 },
+  leaderboard: { data: null, timestamp: 0 },
+  CACHE_DURATION: 20000 // 20 seconds
+};
+
 // Public state for reading (more stable than wallet provider)
 let publicProvider = null;
 let publicContract = null;
 
+// Optimized Public Provider with better retry logic and reliable endpoints
 async function getPublicState() {
   if (publicProvider && publicContract) return { publicProvider, publicContract };
   
-  // Try RPCs until one works
-  for (const rpc of BSC_RPC_URLS) {
+  const robustRPCs = [
+    "https://binance.llamarpc.com",
+    "https://bsc-dataseed.binance.org/",
+    "https://bsc-dataseed1.defibit.io/",
+    "https://rpc.ankr.com/bsc"
+  ];
+
+  for (const rpc of robustRPCs) {
     try {
-      publicProvider = new ethers.JsonRpcProvider(rpc);
-      // Test connection
-      await publicProvider.getBlockNumber();
+      const tempProvider = new ethers.JsonRpcProvider(rpc, undefined, { staticNetwork: true });
+      // Quick ping
+      await Promise.race([
+        tempProvider.getBlockNumber(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
+      ]);
+      publicProvider = tempProvider;
       publicContract = new ethers.Contract(PROXY_ADDRESS, ABI, publicProvider);
       return { publicProvider, publicContract };
     } catch (e) {
-      console.warn(`Public RPC ${rpc} failed, trying next...`);
+      console.warn(`Public RPC ${rpc} check failed:`, e.message);
     }
   }
-  throw new Error("All public RPCs failed. Please check your internet connection.");
+  
+  // Fallback to constants if all robust fail
+  for (const rpc of BSC_RPC_URLS) {
+    try {
+      publicProvider = new ethers.JsonRpcProvider(rpc, undefined, { staticNetwork: true });
+      await publicProvider.getBlockNumber();
+      publicContract = new ethers.Contract(PROXY_ADDRESS, ABI, publicProvider);
+      return { publicProvider, publicContract };
+    } catch (e) {}
+  }
+
+  throw new Error("Unable to connect to Binance Smart Chain. Please check your connection.");
 }
 
 // Initialize Firebase lazily
@@ -90,20 +120,29 @@ export async function forceBSC() {
 }
 
 export async function getBNBPrice() {
-  try {
-    const response = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT");
-    const data = await response.json();
-    return parseFloat(data.price);
-  } catch (e) {
-    console.warn("Binance price fetch failed, trying fallback:", e.message);
+  const now = Date.now();
+  if (cache.bnbPrice.data && (now - cache.bnbPrice.timestamp < cache.CACHE_DURATION)) {
+    return cache.bnbPrice.data;
+  }
+
+  const fetchPrice = async () => {
     try {
-      const response = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd");
+      const response = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT");
       const data = await response.json();
-      return data.binancecoin.usd;
-    } catch (e2) {
-      console.warn("Coingecko price fetch failed:", e2.message);
-      return 600; // Final fallback
+      return parseFloat(data.price);
+    } catch (e) {
+      const responseCoingecko = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd");
+      const dataCoingecko = await responseCoingecko.json();
+      return dataCoingecko.binancecoin.usd;
     }
+  };
+
+  try {
+    const price = await fetchPrice();
+    cache.bnbPrice = { data: price, timestamp: now };
+    return price;
+  } catch (err) {
+    return cache.bnbPrice.data || 600;
   }
 }
 
@@ -198,79 +237,57 @@ export async function getWeb3State() {
 }
 
 export async function updateBalances() {
+  const now = Date.now();
+  
   try {
-    // 1. Get address from stored state or wallet safely
     let address = connectedAddress;
-    
     if (!address && window.ethereum && window.ethereum.selectedAddress) {
       address = window.ethereum.selectedAddress;
       connectedAddress = address;
     }
     
-    if (!address) {
-      try {
-        // Only call getWeb3State if we absolutely have no address
-        const { signer: walletSigner } = await getWeb3State();
-        address = await walletSigner.getAddress();
-        connectedAddress = address;
-      } catch (e) {
-        console.warn("Could not get address for balance update:", e.message);
-        // If we can't get an address, we can't fetch personalized balances
-        return { balance: "0.00", bnbBalance: "0.00", referrals: 0 };
-      }
+    // Check cache for this specific address
+    if (address && cache.balances.data && cache.balances.data.address === address && (now - cache.balances.timestamp < cache.CACHE_DURATION)) {
+      return cache.balances.data;
     }
 
-    // 2. Use Public RPC for reading data (fixes "Failed to fetch")
+    if (!address) {
+       // Avoid recursive calls or heavy init on boot
+       return { balance: "0.00", bnbBalance: "0.00", referrals: 0 };
+    }
+
     const { publicProvider, publicContract } = await getPublicState();
     
-    console.log("Fetching balances via Public RPC for:", address);
+    // Batch calls using Promise.all
+    const [balance, decimals, bnbBalRaw, refRaw] = await Promise.all([
+      publicContract.balanceOf(address).catch(() => 0n),
+      publicContract.decimals().catch(() => 18n),
+      publicProvider.getBalance(address).catch(() => 0n),
+      publicContract.getReferralCount(address).catch(() => 0n)
+    ]);
 
-    // Fetch Token Balance
-    let tokenBal = "0.00";
-    try {
-      const balance = await publicContract.balanceOf(address);
-      const decimals = await publicContract.decimals();
-      tokenBal = ethers.formatUnits(balance, decimals);
-    } catch (e) {
-      console.warn("Token balance fetch failed via Public RPC:", e.message);
-    }
-
-    // Fetch BNB Balance
-    let bnbBal = "0.00";
-    try {
-      const balanceBNB = await publicProvider.getBalance(address);
-      bnbBal = ethers.formatEther(balanceBNB);
-    } catch (e) {
-      console.warn("BNB balance fetch failed via Public RPC:", e.message);
-    }
+    const tokenBal = ethers.formatUnits(balance, decimals);
+    const bnbBal = ethers.formatEther(bnbBalRaw);
+    const referrals = Number(refRaw);
     
-    // Format balances for display
     const formattedTokenBalance = isNaN(parseFloat(tokenBal)) ? "0.00" : parseFloat(tokenBal).toLocaleString(undefined, { maximumFractionDigits: 2 });
     const formattedBnbBalance = isNaN(parseFloat(bnbBal)) ? "0.0000" : parseFloat(bnbBal).toFixed(4);
 
-    console.log("Balances updated (Public RPC):", { token: formattedTokenBalance, bnb: formattedBnbBalance });
+    const result = { balance: tokenBal, bnbBalance: bnbBal, referrals, address };
+    cache.balances = { data: result, timestamp: now };
 
-    // Fetch referrals from contract
-    let referrals = 0;
-    try {
-      referrals = Number(await publicContract.getReferralCount(address));
-    } catch (e) {
-      console.warn("getReferralCount failed via Public RPC:", e.message);
-    }
+    // Async sync with Firebase (don't block UI)
+    setTimeout(async () => {
+      try {
+        const firestore = await getDb();
+        const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+        await setDoc(doc(firestore, "leaderboard", address), {
+          referrals: referrals,
+          lastUpdated: new Date().toISOString()
+        }, { merge: true });
+      } catch (e) {}
+    }, 0);
 
-    // Sync with Firebase
-    try {
-      const firestore = await getDb();
-      const { doc, setDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
-      await setDoc(doc(firestore, "leaderboard", address), {
-        referrals: referrals,
-        lastUpdated: new Date().toISOString()
-      }, { merge: true });
-    } catch (e) {
-      // console.warn("Firebase sync failed:", e.message);
-    }
-
-    // Dispatch event for React
     window.dispatchEvent(new CustomEvent('web3Update', { 
       detail: { 
         tokenBalance: formattedTokenBalance,
@@ -280,14 +297,20 @@ export async function updateBalances() {
       } 
     }));
     
-    return { balance: tokenBal, bnbBalance: bnbBal, referrals };
+    return result;
   } catch (e) {
     console.error("Balance update failed:", e.message);
-    return { balance: "0.00", bnbBalance: "0.00", referrals: 0 };
+    return cache.balances.data || { balance: "0.00", bnbBalance: "0.00", referrals: 0 };
   }
 }
 
 export async function loadLeaderboard() {
+  const now = Date.now();
+  if (cache.leaderboard.data && (now - cache.leaderboard.timestamp < cache.CACHE_DURATION)) {
+    if (window.renderLeaderboard) window.renderLeaderboard(cache.leaderboard.data);
+    return cache.leaderboard.data;
+  }
+
   try {
     const { publicContract } = await getPublicState();
     const [addresses, counts] = await publicContract.getTopReferrers();
@@ -297,16 +320,18 @@ export async function loadLeaderboard() {
       referrals: Number(counts[i])
     })).filter(item => item.address !== zeroAddress);
 
+    cache.leaderboard = { data: leaderboard, timestamp: now };
+
     if (window.renderLeaderboard) {
       window.renderLeaderboard(leaderboard);
     }
     return leaderboard;
   } catch (e) {
-    console.error("loadLeaderboard failed via Public RPC:", e.message);
+    console.error("loadLeaderboard failed:", e.message);
     if (window.renderLeaderboard) {
-      window.renderLeaderboard([]);
+      window.renderLeaderboard(cache.leaderboard.data || []);
     }
-    return [];
+    return cache.leaderboard.data || [];
   }
 }
 

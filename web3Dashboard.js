@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { PROXY_CONTRACT_ADDRESS, BSC_RPC_URLS } from "./constants.ts";
+import { PROXY_CONTRACT_ADDRESS, BSC_RPC_URLS, AIGODS_LOGO_URL } from "./constants.ts";
 import { 
   getWeb3State, 
   updateBalances, 
@@ -70,14 +70,13 @@ export async function addTokenToWallet() {
   const tokenAddress = PROXY_CONTRACT_ADDRESS;
   const tokenSymbol = "AIGODS";
   const tokenDecimals = 18;
-  const tokenImage = "https://i.imgur.com/GJ4BNah.png";
+  const tokenImage = AIGODS_LOGO_URL;
 
   try {
     // 1. Ensure user is on BSC first
     await forceBSC();
 
     // 2. Request account access if not already connected
-    // This ensures the wallet is "awake" and ready for the watchAsset request
     await window.ethereum.request({ method: 'eth_requestAccounts' });
 
     // 3. Trigger the add token popup
@@ -95,12 +94,13 @@ export async function addTokenToWallet() {
     });
 
     if (wasAdded) {
-      console.log("AIGODS token was added to wallet");
+      alert("AIGODS token was successfully added to your wallet!");
     }
   } catch (err) {
     console.error("Add token error:", err);
-    // Only alert if it's not a user rejection
-    if (err.code !== 4001) {
+    if (err.code === 4001) {
+      alert("Token addition cancelled by user.");
+    } else {
       alert("Error adding token: " + (err.message || "Unknown error"));
     }
   }
