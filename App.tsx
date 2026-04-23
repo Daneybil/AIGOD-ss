@@ -707,11 +707,11 @@ const App: React.FC = () => {
             <div className="flex flex-col items-center gap-6">
               <div className="flex items-center gap-4 bg-black/80 px-4 md:px-8 py-5 rounded-[1.5rem] border border-white/10 w-full hover:border-[#ff00ff]/40 transition-all shadow-inner group/addr">
                 <span className="text-[10px] md:text-xl font-black text-[#00ffff] font-mono break-all cursor-text select-all flex-1 tracking-wider">
-                  0xbb89b668e5816050B20f4E11D2Ce1D498a663aCA
+                  0xAa3272736aA631dBa7f7b03a3e96289428EBD87C
                 </span>
                 <button 
                   onClick={() => {
-                    navigator.clipboard.writeText("0xbb89b668e5816050B20f4E11D2Ce1D498a663aCA");
+                    navigator.clipboard.writeText("0xAa3272736aA631dBa7f7b03a3e96289428EBD87C");
                     alert("Contract Address Copied to Clipboard!");
                   }}
                   className="p-3 bg-white text-black rounded-xl hover:scale-110 active:scale-95 transition-all shadow-lg shrink-0"
@@ -723,7 +723,7 @@ const App: React.FC = () => {
 
               <div className="flex flex-wrap items-center justify-center gap-4">
                 <a 
-                  href="https://bscscan.com/token/0xbb89b668e5816050b20f4e11d2ce1d498a663aca" 
+                  href="https://bscscan.com/token/0xAa3272736aA631dBa7f7b03a3e96289428EBD87C" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-3 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 px-8 py-3.5 rounded-full text-[10px] md:text-xs font-[900] uppercase tracking-widest hover:bg-cyan-500 hover:text-black transition-all shadow-[0_0_30px_rgba(0,255,255,0.1)]"
@@ -1072,7 +1072,7 @@ const App: React.FC = () => {
         
         <div className="w-full max-w-4xl px-4 mt-20 md:mt-24">
           <a 
-            href="https://bscscan.com/token/0xbb89b668e5816050b20f4e11d2ce1d498a663aca#code" 
+            href="https://bscscan.com/token/0xAa3272736aA631dBa7f7b03a3e96289428EBD87C#code" 
             target="_blank" 
             rel="noopener noreferrer"
             className="block group"
@@ -1096,7 +1096,7 @@ const App: React.FC = () => {
            <div className="space-y-6 md:space-y-8">
               <h5 className="text-cyan-400 text-xl md:text-3xl font-black italic uppercase tracking-tighter">AIGODS OFFICIAL</h5>
               <div className="flex items-center justify-center md:justify-start gap-4 md:gap-8 flex-wrap">
-                 <a href="https://bscscan.com/token/0xbb89b668e5816050b20f4e11d2ce1d498a663aca#code" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-all"><Activity size={28} className="text-cyan-400" /></a>
+                 <a href="https://bscscan.com/token/0xAa3272736aA631dBa7f7b03a3e96289428EBD87C#code" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-all"><Activity size={28} className="text-cyan-400" /></a>
                  <a href="https://t.me/aigodscoinofficialll" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-all"><Send size={28} className="text-cyan-400" /></a>
                  <a href="https://t.me/AIGODSCOINOFFICIALLLL" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-all"><MessageCircle size={28} className="text-cyan-400" /></a>
                  <a href="https://x.com/AIGODSCOIN" target="_blank" rel="noopener noreferrer" className="hover:scale-110 transition-all"><Twitter size={28} className="text-cyan-400" /></a>

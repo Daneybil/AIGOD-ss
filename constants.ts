@@ -17,7 +17,7 @@ export const BSC_RPC_URLS = [
   "https://rpc.ankr.com/bsc"
 ];
 
-export const PROXY_CONTRACT_ADDRESS = '0xbb89b668e5816050B20f4E11D2Ce1D498a663aCA';
+export const PROXY_CONTRACT_ADDRESS = '0xAa3272736aA631dBa7f7b03a3e96289428EBD87C';
 export const PRESALE_ROUTER_ADDRESS = '0xc764DD44D6987F619d73FB9371004E312184f6ec';
 
 export const PRESALE_ROUTER_ABI = [
@@ -303,25 +303,6 @@ export const CONTRACT_ABI = [
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "account",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "bool",
-				"name": "isBlacklisted",
-				"type": "bool"
-			}
-		],
-		"name": "Blacklisted",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
 				"indexed": false,
 				"internalType": "bool",
 				"name": "isLocked",
@@ -443,6 +424,19 @@ export const CONTRACT_ABI = [
 			}
 		],
 		"name": "ReferralBonus",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "stakingRewardsAmount",
+				"type": "uint256"
+			}
+		],
+		"name": "StakingRewardsSent",
 		"type": "event"
 	},
 	{
@@ -809,6 +803,19 @@ export const CONTRACT_ABI = [
 	},
 	{
 		"inputs": [],
+		"name": "STAKING_TAX_PCT",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
 		"name": "SWAP_COOLDOWN",
 		"outputs": [
 			{
@@ -854,6 +861,32 @@ export const CONTRACT_ABI = [
 				"internalType": "string",
 				"name": "",
 				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "accumulatedLiquidityTokens",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "accumulatedStakingTokens",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
