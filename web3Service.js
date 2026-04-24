@@ -335,40 +335,39 @@ export async function loadLeaderboard() {
   }
 }
 
-export async function buyPresale(amountBNB) {
+export async function buyPresale(amountBNB, overrideReferrer = null) {
   try {
-    const { signer } = await getWeb3State();
-    const routerContract = new ethers.Contract(PRESALE_ROUTER_ADDRESS, PRESALE_ROUTER_ABI, signer);
-    const referralAddress = localStorage.getItem("aigods_referrer") || zeroAddress;
+    const { contract } = await getWeb3State();
+    const referralAddress = overrideReferrer || localStorage.getItem("aigods_referrer") || zeroAddress;
     
-    console.log("Initiating buy via PresaleRouter with amount:", amountBNB, "and referral:", referralAddress);
+    console.log("Initiating buyPreSale via Main Contract with amount:", amountBNB, "and referral:", referralAddress);
     
     const value = ethers.parseEther(amountBNB.toString());
     
     // Estimate gas for better reliability
     let gasLimit;
     try {
-      gasLimit = await routerContract.buy.estimateGas(referralAddress, { value });
-      // Add 20% buffer
-      gasLimit = (gasLimit * 120n) / 100n;
+      gasLimit = await contract.buyPreSale.estimateGas(referralAddress, { value });
+      // Add 30% buffer for complex logic
+      gasLimit = (gasLimit * 130n) / 100n;
     } catch (e) {
-      console.warn("Gas estimation failed on router, using default:", e.message);
-      gasLimit = 300000n;
+      console.warn("Gas estimation failed on main contract, using default:", e.message);
+      gasLimit = 500000n; // Increased default gas for safety
     }
 
-    const tx = await routerContract.buy(referralAddress, {
+    const tx = await contract.buyPreSale(referralAddress, {
       value,
       gasLimit
     });
     
-    console.log("Router transaction sent:", tx.hash);
-    await tx.wait();
-    console.log("Router transaction confirmed");
+    console.log("Transaction sent:", tx.hash);
+    const receipt = await tx.wait();
+    console.log("Transaction confirmed:", receipt.hash);
     
     await updateBalances();
     return tx;
   } catch (err) {
-    console.error("buyPresale via router failed:", err);
+    console.error("buyPreSale failed:", err);
     throw err;
   }
 }

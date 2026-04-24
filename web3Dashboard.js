@@ -15,7 +15,7 @@ export async function connectWallet() {
 
 export async function buyWithReferral(referrer, ethAmount) {
   try {
-    const tx = await serviceBuyPresale(ethAmount);
+    const tx = await serviceBuyPresale(ethAmount, referrer);
     alert("Purchase successful!");
     return tx;
   } catch (error) {
