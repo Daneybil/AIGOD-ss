@@ -40,6 +40,8 @@ const ParticleBackground: React.FC = () => {
               alt="Background Center" 
               className="w-full h-auto filter brightness-125 contrast-150 drop-shadow-[0_0_200px_rgba(34,211,238,0.6)]"
               onError={handleImageError}
+              loading="lazy"
+              decoding="async"
             />
           </motion.div>
 
@@ -53,7 +55,7 @@ const ParticleBackground: React.FC = () => {
             transition={{ duration: 40, repeat: Infinity, ease: "easeInOut" }}
             className="absolute top-0 md:top-10 w-full max-w-[500px] md:max-w-[1000px] px-4 opacity-50"
           >
-            <img src={BG_LOGO_TOP} alt="Background Top" className="w-full h-auto filter brightness-100 contrast-125" onError={handleImageError} />
+            <img src={BG_LOGO_TOP} alt="Background Top" className="w-full h-auto filter brightness-100 contrast-125" onError={handleImageError} loading="lazy" decoding="async" />
           </motion.div>
 
           <motion.div 
@@ -65,7 +67,7 @@ const ParticleBackground: React.FC = () => {
             transition={{ duration: 45, repeat: Infinity, ease: "easeInOut" }}
             className="absolute bottom-0 md:bottom-10 w-full max-w-[500px] md:max-w-[1000px] px-4 opacity-50"
           >
-            <img src={BG_LOGO_BOTTOM} alt="Background Bottom" className="w-full h-auto filter brightness-100 contrast-125" onError={handleImageError} />
+            <img src={BG_LOGO_BOTTOM} alt="Background Bottom" className="w-full h-auto filter brightness-100 contrast-125" onError={handleImageError} loading="lazy" decoding="async" />
           </motion.div>
         </div>
       </div>
@@ -107,6 +109,8 @@ const ParticleBackground: React.FC = () => {
                   alt="Gods Logo" 
                   className="w-full h-full object-cover grayscale brightness-50"
                   onError={handleImageError}
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
             </div>

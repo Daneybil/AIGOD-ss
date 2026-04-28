@@ -20,6 +20,8 @@ const LogoGrid: React.FC = () => {
                   : ''
               }`}
               style={{ display: 'block', visibility: 'visible', opacity: 1 }}
+              loading="lazy"
+              decoding="async"
               onError={(e) => {
                  (e.target as HTMLImageElement).onerror = null;
                  (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${logo.name}&background=0D0D0D&color=fff&size=64&font-size=0.4&bold=true`;

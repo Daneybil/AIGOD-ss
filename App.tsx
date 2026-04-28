@@ -576,15 +576,15 @@ const App: React.FC = () => {
       <div className="fixed inset-0 pointer-events-none z-[-1] overflow-hidden opacity-100">
         {/* TOP LOGO */}
         <div className="absolute top-[5%] left-1/2 -translate-x-1/2 w-[120vw] md:w-[100vw] animate-zoom-in-out opacity-80">
-          <img src={BG_LOGO_TOP} alt="Background Logo Top" className="w-full h-auto filter brightness-150 contrast-150 drop-shadow-[0_0_200px_rgba(0,150,255,0.6)]" onError={handleImageError} />
+          <img src={BG_LOGO_TOP} alt="Background Logo Top" className="w-full h-auto filter brightness-150 contrast-150 drop-shadow-[0_0_200px_rgba(0,150,255,0.6)]" onError={handleImageError} loading="lazy" decoding="async" />
         </div>
         {/* CENTER LOGO - THE MAIN BILLBOARD */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150vw] md:w-[120vw] animate-zoom-in-out" style={{ animationDelay: '5s' }}>
-          <img src={BG_LOGO_CENTER} alt="Background Logo Center" className="w-full h-auto filter brightness-200 contrast-150 drop-shadow-[0_0_250px_rgba(0,150,255,0.8)]" onError={handleImageError} />
+          <img src={BG_LOGO_CENTER} alt="Background Logo Center" className="w-full h-auto filter brightness-200 contrast-150 drop-shadow-[0_0_250px_rgba(0,150,255,0.8)]" onError={handleImageError} loading="lazy" decoding="async" />
         </div>
         {/* BOTTOM LOGO */}
         <div className="absolute bottom-[5%] left-1/2 -translate-x-1/2 w-[120vw] md:w-[100vw] animate-zoom-in-out opacity-80" style={{ animationDelay: '10s' }}>
-          <img src={BG_LOGO_BOTTOM} alt="Background Logo Bottom" className="w-full h-auto filter brightness-150 contrast-150 drop-shadow-[0_0_200px_rgba(0,150,255,0.6)]" onError={handleImageError} />
+          <img src={BG_LOGO_BOTTOM} alt="Background Logo Bottom" className="w-full h-auto filter brightness-150 contrast-150 drop-shadow-[0_0_200px_rgba(0,150,255,0.6)]" onError={handleImageError} loading="lazy" decoding="async" />
         </div>
       </div>
 
@@ -630,6 +630,8 @@ const App: React.FC = () => {
               alt="icon" 
               style={{ display: 'block', visibility: 'visible', opacity: 1 }}
               onError={handleImageError}
+              loading="lazy"
+              decoding="async"
             />
             <span className="hidden sm:inline">REFERRAL REWARDS CHALLENGE</span>
             <span className="sm:hidden">REWARDS</span>
@@ -683,10 +685,11 @@ const App: React.FC = () => {
         <div className="w-full max-w-3xl aspect-video rounded-3xl md:rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl mb-16 md:mb-24 relative bg-gray-900 mx-auto">
            <iframe 
              className="w-full h-full"
-             src="https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=0&controls=1" 
+             src="https://www.youtube.com/embed/abHiW5zkpQ4" 
              title="AIGODS Trailer"
              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
              allowFullScreen
+             loading="lazy"
            ></iframe>
         </div>
 
@@ -787,6 +790,8 @@ const App: React.FC = () => {
                 alt="AIGODS Front" 
                 style={{ display: 'block', visibility: 'visible', opacity: 1, width: '100%', height: '100%' }}
                 onError={handleImageError}
+                loading="lazy"
+                decoding="async"
               />
             </div>
             <div className="coin-face coin-face-back">
@@ -795,6 +800,8 @@ const App: React.FC = () => {
                 alt="AIGODS Back" 
                 style={{ display: 'block', visibility: 'visible', opacity: 1, width: '100%', height: '100%' }}
                 onError={handleImageError}
+                loading="lazy"
+                decoding="async"
               />
             </div>
           </div>
@@ -1426,7 +1433,7 @@ const App: React.FC = () => {
           <div className="relative w-full max-w-[440px] bg-[#0a0a14] border border-white/10 rounded-[2.5rem] p-6 md:p-10 shadow-[0_0_120px_rgba(0,0,0,1)] flex flex-col items-center animate-fade-in">
              <div className="relative w-20 h-20 md:w-28 md:h-28 mb-8 flex items-center justify-center">
                <div className="absolute inset-0 bg-cyan-500/30 rounded-full blur-2xl animate-pulse"></div>
-               <img src={AIGODS_LOGO_URL} className="relative w-full h-full rounded-full border-2 border-cyan-400/50 shadow-2xl z-10 animate-coin-rotate-y" alt="logo" onError={handleImageError} />
+               <img src={AIGODS_LOGO_URL} className="relative w-full h-full rounded-full border-2 border-cyan-400/50 shadow-2xl z-10 animate-coin-rotate-y" alt="logo" onError={handleImageError} loading="lazy" decoding="async" />
              </div>
              <div className="w-full flex items-center justify-between mb-8">
                <div className="flex items-center gap-3">
@@ -1474,7 +1481,7 @@ const App: React.FC = () => {
                     <button onClick={() => setIsWhitepaperOpen(false)} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center hover:bg-white/10 border border-white/10"><X size={18} className="text-gray-400" /></button>
                  </div>
                  <div className="text-center mb-10"><h1 className="text-3xl md:text-6xl font-black italic uppercase text-white leading-tight drop-shadow-2xl">THE FUTURE IS NOW — BECOME A<br/>GOD IN CRYPTO 👑</h1></div>
-                 <div className="w-full rounded-[2.5rem] overflow-hidden border border-white/10 mb-2 shadow-[0_0_60px_rgba(255,255,255,0.05)]"><img src={AIGODS_LOGO_URL} alt="The Titan" className="w-full aspect-[16/9] object-cover" onError={handleImageError} /></div>
+                 <div className="w-full rounded-[2.5rem] overflow-hidden border border-white/10 mb-2 shadow-[0_0_60px_rgba(255,255,255,0.05)]"><img src={AIGODS_LOGO_URL} alt="The Titan" className="w-full aspect-[16/9] object-cover" onError={handleImageError} loading="lazy" decoding="async" /></div>
                  <p className="text-center text-[7px] md:text-[8px] font-black text-gray-600 uppercase tracking-[0.4em] mb-12">A MAJESTIC BEARDED TITAN, HALF CYBERNETIC HUMAN, HALF BLAZING AIGODS SYMBOL</p>
                  <div className="bg-[#0a0a0f] border border-white/5 rounded-[2.5rem] p-6 md:p-12 mb-10 shadow-xl">
                     <div className="flex items-center gap-3 mb-6"><div className="w-6 h-6 rounded bg-cyan-500 flex items-center justify-center text-black font-black text-xs">1</div><h3 className="text-base md:text-2xl font-black italic text-cyan-400 uppercase">INTRODUCTION — WELCOME TO AI GODS</h3></div>
