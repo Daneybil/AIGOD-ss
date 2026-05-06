@@ -624,7 +624,7 @@ const App: React.FC = () => {
                 const element = document.getElementById('buy-input-section');
                 if (element) element.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="flex items-center justify-center gap-3 px-6 py-4 md:px-12 md:py-6 bg-gradient-to-r from-blue-600 via-blue-700 to-blue-900 border-2 border-blue-400/60 rounded-2xl text-[11px] md:text-xl font-[1000] uppercase tracking-[0.2em] text-white animate-dim-intense-blue hover:scale-110 transition-all shadow-[0_0_50px_rgba(0,100,255,0.6)] cursor-pointer"
+              className="flex items-center justify-center gap-3 px-6 py-4 md:px-12 md:py-6 bg-[#ff00ff] border-2 border-[#ff00ff]/80 rounded-2xl text-[11px] md:text-xl font-[1000] uppercase tracking-[0.2em] text-white hover:scale-110 transition-all shadow-[0_0_50px_rgba(255,0,255,0.6)] cursor-pointer"
             >
               <Zap size={26} className="text-white fill-white/20" />
               BUY AI GOD'S COIN
@@ -706,7 +706,7 @@ const App: React.FC = () => {
         <div className="w-full max-w-3xl aspect-video rounded-3xl md:rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl mb-16 md:mb-24 relative bg-gray-900 mx-auto">
            <iframe 
              className="w-full h-full"
-             src="https://www.youtube.com/embed/abHiW5zkpQ4" 
+             src="https://www.youtube.com/embed/abHiW5zkpQ4?enablejsapi=1&autoplay=0&rel=0" 
              title="AIGODS Trailer"
              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
              allowFullScreen
@@ -934,7 +934,7 @@ const App: React.FC = () => {
                id="buyButton"
                onClick={handleBuyPresale}
                disabled={isProcessing}
-               className="flex-1 px-10 md:px-24 py-9 md:py-11 bg-gradient-to-br from-[#ff00ff] via-[#d946ef] to-[#8b5cf6] rounded-[2rem] md:rounded-[2.5rem] text-black font-[1000] text-3xl md:text-4xl uppercase tracking-tighter shadow-[0_0_70px_rgba(217,70,239,0.5)] hover:shadow-[0_0_100px_rgba(217,70,239,0.8)] hover:scale-[1.04] active:scale-[0.96] transition-all duration-500 animate-dim-light-blue disabled:opacity-50 disabled:scale-100 disabled:animate-none flex flex-col items-center justify-center leading-none min-h-[100px] md:min-h-[120px]"
+               className="flex-1 px-10 md:px-24 py-9 md:py-11 bg-gradient-to-br from-[#ff00ff] via-[#d946ef] to-[#8b5cf6] rounded-[2rem] md:rounded-[2.5rem] text-black font-[1000] text-3xl md:text-4xl uppercase tracking-tighter shadow-[0_0_70px_rgba(217,70,239,0.5)] hover:shadow-[0_0_100px_rgba(217,70,239,0.8)] hover:scale-[1.04] active:scale-[0.96] transition-all duration-500 disabled:opacity-50 disabled:scale-100 flex flex-col items-center justify-center leading-none min-h-[100px] md:min-h-[120px]"
              >
                <span className="mb-1">{isProcessing ? 'PROCESSING...' : 'BUY AIGODS'}</span>
                <span className="text-xl md:text-2xl opacity-80 tracking-[0.2em]">{!isProcessing && 'COIN NOW'}</span>

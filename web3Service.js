@@ -44,7 +44,7 @@ async function getPublicState() {
 
   for (const rpc of robustRPCs) {
     try {
-      const tempProvider = new ethers.JsonRpcProvider(rpc, undefined, { staticNetwork: true });
+      const tempProvider = new ethers.JsonRpcProvider(rpc, { chainId: 56, name: 'bsc' }, { staticNetwork: true });
       // Quick ping
       await Promise.race([
         tempProvider.getBlockNumber(),
@@ -61,11 +61,13 @@ async function getPublicState() {
   // Fallback to constants if all robust fail
   for (const rpc of BSC_RPC_URLS) {
     try {
-      publicProvider = new ethers.JsonRpcProvider(rpc, undefined, { staticNetwork: true });
+      publicProvider = new ethers.JsonRpcProvider(rpc, { chainId: 56, name: 'bsc' }, { staticNetwork: true });
       await publicProvider.getBlockNumber();
       publicContract = new ethers.Contract(PROXY_ADDRESS, ABI, publicProvider);
       return { publicProvider, publicContract };
-    } catch (e) {}
+    } catch (e) {
+      console.warn(`Fallback RPC ${rpc} check failed:`, e.message);
+    }
   }
 
   throw new Error("Unable to connect to Binance Smart Chain. Please check your connection.");

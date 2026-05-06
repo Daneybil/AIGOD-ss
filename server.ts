@@ -62,36 +62,56 @@ const initializeApp = async () => {
   const nodeCache = {
     bnbPrice: { data: 600, timestamp: 0 },
     leaderboard: { data: [], timestamp: 0 },
-    TTL: 20000 
+    TTL: 15000 
   };
+
+  const BSC_RPCS = [
+    "https://rpc.ankr.com/bsc",
+    "https://binance.llamarpc.com",
+    "https://bsc-dataseed.binance.org/",
+    "https://bsc-dataseed1.defibit.io/"
+  ];
 
   // Background task to keep leaderboard fresh (Moves logic to Server-side)
   const refreshLeaderboard = async () => {
-    try {
-      const BSC_RPC = "https://rpc.ankr.com/bsc";
-      const PROXY_ADDR = "0x5C61B89e536A5f101500920D044b9e36ab709DF8";
-      const ABI = ["function getTopReferrers() external view returns (address[], uint256[])"];
-      
-      const provider = new ethers.JsonRpcProvider(BSC_RPC, undefined, { staticNetwork: true });
-      const contract = new ethers.Contract(PROXY_ADDR, ABI, provider);
-      const [addresses, counts] = await contract.getTopReferrers();
-      const zeroAddress = "0x0000000000000000000000000000000000000000";
-      
-      const leaderboard = (addresses as string[]).map((addr, i) => ({
-        address: addr,
-        referrals: Number(counts[i])
-      })).filter(item => item.address !== zeroAddress);
+    let success = false;
+    for (const rpc of BSC_RPCS) {
+      if (success) break;
+      try {
+        const PROXY_ADDR = "0x5C61B89e536A5f101500920D044b9e36ab709DF8";
+        const ABI = ["function getTopReferrers() external view returns (address[], uint256[])"];
+        
+        // Define network explicitly to prevent "failed to detect network" errors
+        const provider = new ethers.JsonRpcProvider(rpc, { chainId: 56, name: 'bsc' }, { staticNetwork: true });
+        const contract = new ethers.Contract(PROXY_ADDR, ABI, provider);
+        
+        // Use a timeout for the contract call
+        const [addresses, counts] = await Promise.race([
+          contract.getTopReferrers(),
+          new Promise<any>((_, reject) => setTimeout(() => reject(new Error("RPC Timeout")), 8000))
+        ]);
+        
+        const zeroAddress = "0x0000000000000000000000000000000000000000";
+        
+        const leaderboard = (addresses as string[]).map((addr, i) => ({
+          address: addr,
+          referrals: Number(counts[i])
+        }))
+        .filter(item => item.address !== zeroAddress && item.referrals > 0)
+        .sort((a, b) => b.referrals - a.referrals); // Ensure strictly sorted by referrals
 
-      nodeCache.leaderboard = { data: leaderboard, timestamp: Date.now() };
-      console.log("📊 [AIGODS] Leaderboard cache refreshed.");
-    } catch (e: any) {
-      console.warn("📊 [AIGODS] Leaderboard refresh failed:", e.message);
+        nodeCache.leaderboard = { data: leaderboard, timestamp: Date.now() };
+        console.log(`📊 [AIGODS] Leaderboard cache refreshed using ${rpc} - Found ${leaderboard.length} entries.`);
+        success = true;
+      } catch (e: any) {
+        console.warn(`📊 [AIGODS] Leaderboard fetch failed for ${rpc}:`, e.message);
+      }
     }
   };
 
-  // Initial fetch and 1min interval
+  // Initial fetch and 30s interval
   refreshLeaderboard();
-  setInterval(refreshLeaderboard, 60000);
+  setInterval(refreshLeaderboard, 30000);
 
   // --- 4.3 CORE LOGIC ENDPOINTS (Stateless & Protected) ---
   app.get("/api/bnb-price", async (req, res) => {
