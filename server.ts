@@ -29,13 +29,91 @@ const initializeApp = async () => {
   const { default: dotenv } = await import("dotenv");
   const { default: axios } = await import("axios");
   const { default: multer } = await import("multer");
+  const { default: helmet } = await import("helmet");
+  const { default: compression } = await import("compression");
+  const { rateLimit } = await import("express-rate-limit");
+  const { ethers } = await import("ethers");
 
-  console.log("📦 [AIGODS] Heavy libraries loaded. Activating APIs...");
+  console.log("📦 [AIGODS] High-performance libraries loaded. Activating Shield & APIs...");
   dotenv.config();
+
+  // --- 4.1 SECURITY & COMPRESSION ---
+  app.use(helmet({
+    contentSecurityPolicy: false, // Disabled for ease of connection to external RPCs/CDNs
+    crossOriginEmbedderPolicy: false,
+  }));
+  app.use(compression()); // Compress all responses for massive speed gains
+  
+  // Rate limiting to prevent API abuse
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 200, // Limit each IP to 200 requests per window
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many requests from this IP, please try again later." }
+  });
+  app.use("/api/", limiter);
 
   app.use(cors());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
+
+  // --- 4.2 SERVER-SIDE CACHE & BLOCKCHAIN READS ---
+  const nodeCache = {
+    bnbPrice: { data: 600, timestamp: 0 },
+    leaderboard: { data: [], timestamp: 0 },
+    TTL: 20000 
+  };
+
+  // Background task to keep leaderboard fresh (Moves logic to Server-side)
+  const refreshLeaderboard = async () => {
+    try {
+      const BSC_RPC = "https://rpc.ankr.com/bsc";
+      const PROXY_ADDR = "0x5C61B89e536A5f101500920D044b9e36ab709DF8";
+      const ABI = ["function getTopReferrers() external view returns (address[], uint256[])"];
+      
+      const provider = new ethers.JsonRpcProvider(BSC_RPC, undefined, { staticNetwork: true });
+      const contract = new ethers.Contract(PROXY_ADDR, ABI, provider);
+      const [addresses, counts] = await contract.getTopReferrers();
+      const zeroAddress = "0x0000000000000000000000000000000000000000";
+      
+      const leaderboard = (addresses as string[]).map((addr, i) => ({
+        address: addr,
+        referrals: Number(counts[i])
+      })).filter(item => item.address !== zeroAddress);
+
+      nodeCache.leaderboard = { data: leaderboard, timestamp: Date.now() };
+      console.log("📊 [AIGODS] Leaderboard cache refreshed.");
+    } catch (e: any) {
+      console.warn("📊 [AIGODS] Leaderboard refresh failed:", e.message);
+    }
+  };
+
+  // Initial fetch and 1min interval
+  refreshLeaderboard();
+  setInterval(refreshLeaderboard, 60000);
+
+  // --- 4.3 CORE LOGIC ENDPOINTS (Stateless & Protected) ---
+  app.get("/api/bnb-price", async (req, res) => {
+    const now = Date.now();
+    if (now - nodeCache.bnbPrice.timestamp < nodeCache.TTL) {
+      return res.json({ price: nodeCache.bnbPrice.data });
+    }
+
+    try {
+      const response = await axios.get("https://api.binance.com/api/v3/ticker?symbol=BNBUSDT", { timeout: 5000 });
+      const price = parseFloat(response.data.price || response.data.lastPrice);
+      nodeCache.bnbPrice = { data: price, timestamp: now };
+      res.json({ price });
+    } catch (error) {
+      res.json({ price: nodeCache.bnbPrice.data }); // Return stale if fail
+    }
+  });
+
+  app.get("/api/leaderboard", (req, res) => {
+    // Instant response from cache for high scalability
+    res.json({ leaderboard: nodeCache.leaderboard.data });
+  });
 
   // --- 4.5 VITE MIDDLEWARE FOR DEVELOPMENT ---
   if (process.env.NODE_ENV !== "production") {

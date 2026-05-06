@@ -200,6 +200,14 @@ const App: React.FC = () => {
   const [bnbPrice, setBnbPrice] = useState<number>(600);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // --- AUTOMATIC PHASE LOGIC ---
+  const DEPLOYMENT_DATE = new Date('2026-04-28T00:00:00Z'); // 8 days ago from May 6
+  const PHASE1_DURATION_DAYS = 60;
+  const isPhase2Active = useMemo(() => {
+    const phase2Start = DEPLOYMENT_DATE.getTime() + (PHASE1_DURATION_DAYS * 24 * 60 * 60 * 1000);
+    return Date.now() >= phase2Start;
+  }, []);
+
   // Fetch BNB Price
   useEffect(() => {
     const fetchPrice = async () => {
@@ -593,22 +601,35 @@ const App: React.FC = () => {
 
       <div className="top-nav-fixed w-full flex items-center justify-between px-4 md:px-10 py-6 z-[50]">
         <div className="flex items-center gap-2 md:gap-6">
-          <button 
-            id="connectButton"
-            onClick={connectWalletHandler}
-            className="flex items-center gap-2 px-4 py-2 md:px-8 md:py-4 border-2 border-cyan-500/60 rounded-xl bg-cyan-500/10 text-[9px] md:text-sm font-black uppercase tracking-widest text-cyan-400 hover:bg-cyan-500/20 transition-all animate-dim-light-blue shadow-[0_0_20px_rgba(0,255,255,0.15)]"
-          >
-            <Wallet2 size={14} className="md:w-4 md:h-4" />
-            <div className="flex flex-col items-start text-left leading-none">
-              <span className="truncate max-w-[80px] md:max-w-none">{connectedAddress ? `${connectedAddress.slice(0,6)}...` : 'Connect'}</span>
-              {connectedAddress && (
-                <div className="flex flex-col items-start">
-                  <span className="text-[7px] md:text-[8px] text-cyan-500/60 mt-1 uppercase">{walletBalance} BNB</span>
-                  <span className="text-[7px] md:text-[8px] text-yellow-500/60 mt-0.5 uppercase">{tokenBalance} AIGODS</span>
-                </div>
-              )}
-            </div>
-          </button>
+          <div className="flex flex-col gap-3">
+            <button 
+              id="connectButton"
+              onClick={connectWalletHandler}
+              className="flex items-center gap-2 px-4 py-2 md:px-8 md:py-4 border-2 border-cyan-500/60 rounded-xl bg-cyan-500/10 text-[9px] md:text-sm font-black uppercase tracking-widest text-cyan-400 hover:bg-cyan-500/20 transition-all animate-dim-light-blue shadow-[0_0_20px_rgba(0,255,255,0.15)]"
+            >
+              <Wallet2 size={14} className="md:w-4 md:h-4" />
+              <div className="flex flex-col items-start text-left leading-none">
+                <span className="truncate max-w-[80px] md:max-w-none">{connectedAddress ? `${connectedAddress.slice(0,6)}...` : 'Connect'}</span>
+                {connectedAddress && (
+                  <div className="flex flex-col items-start">
+                    <span className="text-[7px] md:text-[8px] text-cyan-500/60 mt-1 uppercase">{walletBalance} BNB</span>
+                    <span className="text-[7px] md:text-[8px] text-yellow-500/60 mt-0.5 uppercase">{tokenBalance} AIGODS</span>
+                  </div>
+                )}
+              </div>
+            </button>
+            
+            <button 
+              onClick={() => {
+                const element = document.getElementById('buy-input-section');
+                if (element) element.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="flex items-center justify-center gap-3 px-6 py-4 md:px-12 md:py-6 bg-gradient-to-r from-blue-600 via-blue-700 to-blue-900 border-2 border-blue-400/60 rounded-2xl text-[11px] md:text-xl font-[1000] uppercase tracking-[0.2em] text-white animate-dim-intense-blue hover:scale-110 transition-all shadow-[0_0_50px_rgba(0,100,255,0.6)] cursor-pointer"
+            >
+              <Zap size={26} className="text-white fill-white/20" />
+              BUY AI GOD'S COIN
+            </button>
+          </div>
           <button 
             onClick={() => setIsWhitepaperOpen(true)}
             className="flex items-center gap-2 px-4 py-2 md:px-8 md:py-4 border-2 border-blue-500/60 rounded-xl bg-blue-500/10 text-[9px] md:text-sm font-black uppercase tracking-widest text-blue-400 hover:bg-blue-500/20 transition-all animate-dim-light-blue shadow-[0_0_255,255,255,0.15)]"
@@ -689,7 +710,6 @@ const App: React.FC = () => {
              title="AIGODS Trailer"
              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
              allowFullScreen
-             loading="lazy"
            ></iframe>
         </div>
 
@@ -746,19 +766,34 @@ const App: React.FC = () => {
         </h2>
 
         <div className="w-full max-w-2xl flex flex-col gap-4 md:gap-6 mb-16">
-          <div className="w-full p-6 md:p-12 bg-black/40 border border-gray-800 rounded-3xl md:rounded-[2rem] text-center flex flex-col items-center justify-center transition-all">
+          <div className={`w-full p-6 md:p-12 bg-black/40 border border-gray-800 rounded-3xl md:rounded-[2rem] text-center flex flex-col items-center justify-center transition-all ${isPhase2Active ? 'opacity-40 grayscale-[0.8]' : 'animate-dim-light-blue shadow-[0_0_40px_rgba(34,211,238,0.2)]'}`}>
             <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-2">STAGE 1 PRICE</span>
             <span className="text-[15vw] md:text-[6rem] font-black text-white leading-none">$0.20</span>
             <div className="flex items-center gap-2 mt-4">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#16da64] animate-pulse"></div>
-              <span className="text-[10px] font-black text-[#16da64] uppercase tracking-widest">ACTIVE NOW</span>
+              {!isPhase2Active ? (
+                <>
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#16da64] animate-pulse"></div>
+                  <span className="text-[10px] font-black text-[#16da64] uppercase tracking-widest">ACTIVE NOW</span>
+                </>
+              ) : (
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">PAST PHASE</span>
+              )}
             </div>
           </div>
 
-          <div className="w-full p-6 md:p-12 bg-black/40 border border-gray-800 rounded-3xl md:rounded-[2rem] text-center flex flex-col items-center justify-center opacity-40">
+          <div className={`w-full p-6 md:p-12 bg-black/40 border border-gray-800 rounded-3xl md:rounded-[2rem] text-center flex flex-col items-center justify-center transition-all ${!isPhase2Active ? 'opacity-40' : 'animate-dim-light-blue shadow-[0_0_40px_rgba(0,255,255,0.2)]'}`}>
             <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">STAGE 2 PRICE</span>
-            <span className="text-[15vw] md:text-[6rem] font-black text-gray-400 leading-none">$0.80</span>
-            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-4">NEXT PHASE</span>
+            <span className={`text-[15vw] md:text-[6rem] font-black leading-none ${isPhase2Active ? 'text-white' : 'text-gray-400'}`}>$0.80</span>
+            <div className="flex items-center gap-2 mt-4">
+              {isPhase2Active ? (
+                <>
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#16da64] animate-pulse"></div>
+                  <span className="text-[10px] font-black text-[#16da64] uppercase tracking-widest">ACTIVE NOW</span>
+                </>
+              ) : (
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest mt-4">NEXT PHASE</span>
+              )}
+            </div>
           </div>
 
           <div className="w-full p-6 md:p-12 bg-black/60 border-2 border-cyan-400 rounded-3xl md:rounded-[2.5rem] text-center flex flex-col items-center justify-center shadow-[0_0_80px_rgba(0,255,255,0.4)] relative overflow-hidden animate-dim-light-blue">

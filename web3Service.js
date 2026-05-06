@@ -36,10 +36,10 @@ async function getPublicState() {
   if (publicProvider && publicContract) return { publicProvider, publicContract };
   
   const robustRPCs = [
-    "https://binance.llamarpc.com",
+    "https://rpc.ankr.com/bsc",
     "https://bsc-dataseed.binance.org/",
     "https://bsc-dataseed1.defibit.io/",
-    "https://rpc.ankr.com/bsc"
+    "https://binance.llamarpc.com"
   ];
 
   for (const rpc of robustRPCs) {
@@ -125,23 +125,14 @@ export async function getBNBPrice() {
     return cache.bnbPrice.data;
   }
 
-  const fetchPrice = async () => {
-    try {
-      const response = await fetch("https://api.binance.com/api/v3/ticker/price?symbol=BNBUSDT");
-      const data = await response.json();
-      return parseFloat(data.price);
-    } catch (e) {
-      const responseCoingecko = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=binancecoin&vs_currencies=usd");
-      const dataCoingecko = await responseCoingecko.json();
-      return dataCoingecko.binancecoin.usd;
-    }
-  };
-
   try {
-    const price = await fetchPrice();
+    const response = await fetch("/api/bnb-price");
+    const data = await response.json();
+    const price = data.price;
     cache.bnbPrice = { data: price, timestamp: now };
     return price;
   } catch (err) {
+    console.warn("Server-side price fetch failed, using fallback:", err.message);
     return cache.bnbPrice.data || 600;
   }
 }
@@ -312,13 +303,9 @@ export async function loadLeaderboard() {
   }
 
   try {
-    const { publicContract } = await getPublicState();
-    const [addresses, counts] = await publicContract.getTopReferrers();
-    
-    const leaderboard = addresses.map((addr, i) => ({
-      address: addr,
-      referrals: Number(counts[i])
-    })).filter(item => item.address !== zeroAddress);
+    const response = await fetch("/api/leaderboard");
+    const data = await response.json();
+    const leaderboard = data.leaderboard;
 
     cache.leaderboard = { data: leaderboard, timestamp: now };
 
@@ -327,7 +314,7 @@ export async function loadLeaderboard() {
     }
     return leaderboard;
   } catch (e) {
-    console.error("loadLeaderboard failed:", e.message);
+    console.error("loadLeaderboard server fetch failed:", e.message);
     if (window.renderLeaderboard) {
       window.renderLeaderboard(cache.leaderboard.data || []);
     }
