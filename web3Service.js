@@ -299,29 +299,64 @@ export async function updateBalances() {
 
 export async function loadLeaderboard() {
   const now = Date.now();
-  if (cache.leaderboard.data && (now - cache.leaderboard.timestamp < cache.CACHE_DURATION)) {
+  if (cache.leaderboard.data && cache.leaderboard.data.length > 0 && (now - cache.leaderboard.timestamp < cache.CACHE_DURATION)) {
     if (window.renderLeaderboard) window.renderLeaderboard(cache.leaderboard.data);
     return cache.leaderboard.data;
   }
 
+  let leaderboard = [];
+
+  // 1. Try fetching from the server API (highly scalable server-side cache)
   try {
     const response = await fetch("/api/leaderboard");
-    const data = await response.json();
-    const leaderboard = data.leaderboard;
-
-    cache.leaderboard = { data: leaderboard, timestamp: now };
-
-    if (window.renderLeaderboard) {
-      window.renderLeaderboard(leaderboard);
+    if (response.ok) {
+      const data = await response.json();
+      leaderboard = data.leaderboard || [];
     }
-    return leaderboard;
   } catch (e) {
-    console.error("loadLeaderboard server fetch failed:", e.message);
-    if (window.renderLeaderboard) {
-      window.renderLeaderboard(cache.leaderboard.data || []);
-    }
-    return cache.leaderboard.data || [];
+    console.warn("loadLeaderboard backend fetch failed, transitioning to direct smart contract call:", e.message);
   }
+
+  // 2. Direct client-side smart contract fallback if server cache is empty or fails
+  if (!leaderboard || leaderboard.length === 0) {
+    console.log("📊 Client-Side Leaderboard Fallback Triggered: Querying contract " + PROXY_ADDRESS + " directly...");
+    try {
+      const { publicContract } = await getPublicState();
+      if (publicContract) {
+        const contractCall = publicContract.getTopReferrers();
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("BSC Network Timeout")), 8000));
+        
+        // Race the query to prevent UI block if the RPC is lagging
+        const [addresses, counts] = await Promise.race([contractCall, timeoutPromise]);
+        
+        if (addresses && counts) {
+          leaderboard = addresses.map((addr, i) => ({
+            address: addr,
+            referrals: Number(counts[i] || 0)
+          }))
+          .filter(item => item.address !== zeroAddress && item.referrals > 0)
+          .sort((a, b) => b.referrals - a.referrals);
+          
+          console.log(`📊 Client successfully loaded ${leaderboard.length} referrers directly from BSC Contract.`);
+        }
+      }
+    } catch (contractErr) {
+      console.error("❌ Failed client-side fallback contract query for leaderboard:", contractErr.message);
+    }
+  }
+
+  // Update local cache
+  if (leaderboard && leaderboard.length > 0) {
+    cache.leaderboard = { data: leaderboard, timestamp: now };
+  } else {
+    // If we got absolutely nothing, retain whatever stale data we had
+    leaderboard = cache.leaderboard.data || [];
+  }
+
+  if (window.renderLeaderboard) {
+    window.renderLeaderboard(leaderboard);
+  }
+  return leaderboard;
 }
 
 export async function buyPresale(amountBNB, overrideReferrer = null) {
