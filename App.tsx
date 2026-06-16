@@ -519,6 +519,7 @@ const App: React.FC = () => {
     };
 
     captureReferralFromURL();
+    loadLeaderboard();
   }, []);
 
   useEffect(() => {

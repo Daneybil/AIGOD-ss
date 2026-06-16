@@ -214,7 +214,7 @@ export async function getWeb3State() {
     // Iterate through fallback RPCs from constants
     for (const rpc of BSC_RPC_URLS) {
       try {
-        const fallbackProvider = new ethers.JsonRpcProvider(rpc);
+        const fallbackProvider = new ethers.JsonRpcProvider(rpc, { chainId: 56, name: 'bsc' }, { staticNetwork: true });
         code = await fallbackProvider.getCode(PROXY_ADDRESS);
         if (code !== "0x" && code !== "0x0") break;
       } catch (fallbackErr) {}
